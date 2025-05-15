@@ -1,24 +1,23 @@
 import asyncio
 import sys
-from bleak import BleakScanner, BleakClient
-from bleak.exc import BleakError
 import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QListWidget, QWidget, QTextEdit,
-                             QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog)
+                             QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog,
+                             QSystemTrayIcon, QMenu, QSlider, QColorDialog)
 from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QIcon
 from qasync import QEventLoop, asyncSlot
 
-# 心率服务UUID
-HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
-# 心率测量特征UUID
-HEART_RATE_MEASUREMENT_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
+from Blegetheartbeat import BLEHeartRateMonitor
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.text_color = QColor(255, 255, 255)  # 默认白色
+        self.bg_color = QColor(0, 0, 0)
+        self.bg_opacity = 150  # 默认透明度
         self.setup_ui()
         
     def setup_ui(self):
@@ -35,16 +34,7 @@ class FloatingHeartRateWindow(QWidget):
         
         self.heart_rate_label = QLabel("-- BPM")
         self.heart_rate_label.setAlignment(Qt.AlignCenter)
-        self.heart_rate_label.setStyleSheet("""
-            QLabel {
-                font-size: 48px; 
-                font-weight: bold;
-                color: white;
-                background-color: rgba(0, 0, 0, 150);
-                border-radius: 10px;
-                padding: 20px;
-            }
-        """)
+        self.update_style()
         
         layout.addWidget(self.heart_rate_label)
         self.setMinimumSize(QSize(150, 100))
@@ -72,45 +62,67 @@ class FloatingHeartRateWindow(QWidget):
         """更新心率显示"""
         self.heart_rate_label.setText(f"{rate} BPM")
         
-        # 根据心率值改变颜色
+        # 根据心率值改变背景颜色
         if rate > 100:
-            color = QColor(255, 0, 0)  # 红色
+            self.bg_color = QColor(255, 0, 0)  # 红色
         elif rate < 60:
-            color = QColor(0, 0, 255)  # 蓝色
+            self.bg_color = QColor(0, 0, 255)  # 蓝色
         else:
-            color = QColor(0, 255, 0)  # 绿色
+            self.bg_color = QColor(0, 255, 0)  # 绿色
             
-        # 更新样式表
+        self.update_style()
+    
+    def update_style(self):
+        """更新样式表"""
         self.heart_rate_label.setStyleSheet(f"""
             QLabel {{
                 font-size: 48px; 
                 font-weight: bold;
-                color: white;
-                background-color: rgba({color.red()}, {color.green()}, {color.blue()}, 150);
+                color: rgba({self.text_color.red()}, {self.text_color.green()}, {self.text_color.blue()}, 255);
+                background-color: rgba({self.bg_color.red()}, {self.bg_color.green()}, {self.bg_color.blue()}, {self.bg_opacity});
                 border-radius: 10px;
                 padding: 20px;
             }}
         """)
+    
+    def set_text_color(self, color):
+        """设置文字颜色"""
+        self.text_color = color
+        self.update_style()
+    
+    def set_bg_opacity(self, opacity):
+        """设置背景透明度"""
+        self.bg_opacity = opacity
+        self.update_style()
 
 class HeartRateMonitorGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.client = None
-        self.devices = []
-        self.heart_rate_data = []
+        self.ble_monitor = BLEHeartRateMonitor()
+        self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
         self.floating_window = FloatingHeartRateWindow()
+        self.tray_icon = None
         self.setup_ui()
+        self.setup_tray_icon()
+        # 修复异步方法调用方式
+        QTimer.singleShot(500, lambda: self.scan_devices())  # 直接调用asyncSlot方法，无需create_task
         
     def setup_ui(self):
         """设置GUI界面"""
         self.setWindowTitle("心率监测设置")
-        self.setGeometry(100, 100, 600, 500)
+        self.setGeometry(100, 100, 800, 600)
         
         # 主布局
         main_widget = QWidget()
-        main_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
+        
+        # 左侧布局（设备管理和连接控制）
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        left_widget.setLayout(left_layout)
+        main_layout.addWidget(left_widget, stretch=2)
         
         # 设备扫描区域
         scan_group = QGroupBox("设备管理")
@@ -131,7 +143,7 @@ class HeartRateMonitorGUI(QMainWindow):
         scan_layout.addWidget(self.device_list)
         
         scan_group.setLayout(scan_layout)
-        main_layout.addWidget(scan_group)
+        left_layout.addWidget(scan_group)
         
         # 连接控制区域
         control_group = QGroupBox("连接设置")
@@ -158,21 +170,8 @@ class HeartRateMonitorGUI(QMainWindow):
         btn_layout.addWidget(self.disconnect_button)
         control_layout.addLayout(btn_layout)
         
-        # 浮动窗口设置
-        float_layout = QHBoxLayout()
-        self.float_window_check = QCheckBox("显示浮动窗口")
-        self.float_window_check.setChecked(True)
-        self.float_window_check.stateChanged.connect(self.toggle_floating_window)
-        
-        self.click_through_check = QCheckBox("鼠标穿透")
-        self.click_through_check.stateChanged.connect(self.toggle_click_through)
-        
-        float_layout.addWidget(self.float_window_check)
-        float_layout.addWidget(self.click_through_check)
-        control_layout.addLayout(float_layout)
-        
         control_group.setLayout(control_layout)
-        main_layout.addWidget(control_group)
+        left_layout.addWidget(control_group)
         
         # 数据显示区域
         data_group = QGroupBox("心率数据记录")
@@ -188,12 +187,74 @@ class HeartRateMonitorGUI(QMainWindow):
         data_layout.addWidget(self.save_button)
         
         data_group.setLayout(data_layout)
-        main_layout.addWidget(data_group)
+        left_layout.addWidget(data_group)
+        
+        # 右侧布局（浮动窗口设置）
+        right_widget = QWidget()
+        right_layout = QVBoxLayout()
+        right_widget.setLayout(right_layout)
+        main_layout.addWidget(right_widget, stretch=1)
+        
+        # 浮动窗口设置区域
+        float_group = QGroupBox("浮动窗口设置")
+        float_layout = QVBoxLayout()
+        
+        # 显示控制
+        display_layout = QHBoxLayout()
+        self.float_window_check = QCheckBox("显示浮动窗口")
+        self.float_window_check.setChecked(True)
+        self.float_window_check.stateChanged.connect(self.toggle_floating_window)
+        
+        self.click_through_check = QCheckBox("鼠标穿透")
+        self.click_through_check.stateChanged.connect(self.toggle_click_through)
+        
+        display_layout.addWidget(self.float_window_check)
+        display_layout.addWidget(self.click_through_check)
+        float_layout.addLayout(display_layout)
+        
+        # 文字颜色设置
+        color_layout = QHBoxLayout()
+        self.text_color_button = QPushButton("文字颜色")
+        self.text_color_button.clicked.connect(self.set_text_color)
+        
+        self.text_color_preview = QLabel()
+        self.text_color_preview.setFixedSize(20, 20)
+        self.text_color_preview.setStyleSheet("background-color: white; border: 1px solid black;")
+        
+        color_layout.addWidget(QLabel("文字颜色:"))
+        color_layout.addWidget(self.text_color_button)
+        color_layout.addWidget(self.text_color_preview)
+        color_layout.addStretch()
+        float_layout.addLayout(color_layout)
+        
+        # 背景透明度设置
+        opacity_layout = QHBoxLayout()
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(0, 255)
+        self.opacity_slider.setValue(150)
+        self.opacity_slider.valueChanged.connect(self.set_bg_opacity)
+        
+        opacity_layout.addWidget(QLabel("背景透明度:"))
+        opacity_layout.addWidget(self.opacity_slider)
+        float_layout.addLayout(opacity_layout)
+        
+        # 托盘图标设置
+        tray_layout = QHBoxLayout()
+        self.tray_check = QCheckBox("启用托盘图标")
+        self.tray_check.setChecked(True)
+        self.tray_check.stateChanged.connect(self.toggle_tray_icon)
+        
+        tray_layout.addWidget(self.tray_check)
+        tray_layout.addStretch()
+        float_layout.addLayout(tray_layout)
+        
+        float_group.setLayout(float_layout)
+        right_layout.addWidget(float_group)
         
         # 状态栏
         self.status_label = QLabel("准备就绪")
         self.status_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(self.status_label)
+        right_layout.addWidget(self.status_label)
         
         # 定时器用于更新UI
         self.update_timer = QTimer()
@@ -202,6 +263,35 @@ class HeartRateMonitorGUI(QMainWindow):
         
         # 显示浮动窗口
         self.floating_window.show()
+    
+    def setup_tray_icon(self):
+        """设置系统托盘图标"""
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray_icon = QSystemTrayIcon(self)
+            self.tray_icon.setIcon(QIcon("heart-rate.png"))
+
+            tray_menu = QMenu()
+            show_action = tray_menu.addAction("显示主窗口")
+            show_action.triggered.connect(self.show)
+            quit_action = tray_menu.addAction("退出")
+            quit_action.triggered.connect(self.close)
+            
+            self.tray_icon.setContextMenu(tray_menu)
+            self.tray_icon.show()
+            self.tray_icon.activated.connect(self.on_tray_icon_activated)
+    
+    def on_tray_icon_activated(self, reason):
+        """托盘图标点击事件"""
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show()
+    
+    def toggle_tray_icon(self, state):
+        """切换托盘图标显示"""
+        if self.tray_icon:
+            if state == Qt.Checked:
+                self.tray_icon.show()
+            else:
+                self.tray_icon.hide()
     
     def toggle_floating_window(self, state):
         """切换浮动窗口显示"""
@@ -224,9 +314,20 @@ class HeartRateMonitorGUI(QMainWindow):
             )
         self.floating_window.show()
     
+    def set_text_color(self):
+        """设置文字颜色"""
+        color = QColorDialog.getColor(self.floating_window.text_color, self)
+        if color.isValid():
+            self.floating_window.set_text_color(color)
+            self.text_color_preview.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
+    
+    def set_bg_opacity(self, value):
+        """设置背景透明度"""
+        self.floating_window.set_bg_opacity(value)
+    
     def save_data(self):
         """保存心率数据到文件"""
-        if not self.heart_rate_data:
+        if not self.ble_monitor.heart_rate_data:
             QMessageBox.warning(self, "警告", "没有可保存的数据")
             return
             
@@ -237,7 +338,7 @@ class HeartRateMonitorGUI(QMainWindow):
             try:
                 with open(filename, 'w', encoding='utf-8') as f:
                     f.write("时间,心率(BPM)\n")
-                    for timestamp, hr in self.heart_rate_data:
+                    for timestamp, hr in self.ble_monitor.heart_rate_data:
                         f.write(f"{timestamp},{hr}\n")
                 QMessageBox.information(self, "成功", "数据已保存")
             except Exception as e:
@@ -245,7 +346,7 @@ class HeartRateMonitorGUI(QMainWindow):
     
     def update_ui(self):
         """更新UI状态"""
-        if self.client and self.client.is_connected:
+        if self.ble_monitor.client and self.ble_monitor.client.is_connected:
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
             self.scan_button.setEnabled(False)
@@ -255,6 +356,14 @@ class HeartRateMonitorGUI(QMainWindow):
             self.disconnect_button.setEnabled(False)
             self.scan_button.setEnabled(True)
     
+    def on_heart_rate_update(self, timestamp, heart_rate):
+        """心率数据更新回调"""
+        # 更新浮动窗口
+        self.floating_window.update_heart_rate(heart_rate)
+        
+        # 更新数据显示区域
+        self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
+    
     @asyncSlot()
     async def scan_devices(self):
         """扫描BLE设备"""
@@ -263,14 +372,12 @@ class HeartRateMonitorGUI(QMainWindow):
         self.scan_button.setEnabled(False)
         
         try:
-            self.devices = await BleakScanner.discover()
-            # 过滤掉名称为None的设备
-            filtered_devices = [d for d in self.devices if d.name is not None]
+            devices = await self.ble_monitor.scan_devices()
             
-            for device in filtered_devices:
+            for device in devices:
                 self.device_list.addItem(f"{device.name} ({device.address})")
             
-            self.status_label.setText(f"找到 {len(filtered_devices)} 个设备")
+            self.status_label.setText(f"找到 {len(devices)} 个设备")
         except Exception as e:
             self.status_label.setText(f"扫描错误: {str(e)}")
         finally:
@@ -290,22 +397,15 @@ class HeartRateMonitorGUI(QMainWindow):
         self.status_label.setText(f"正在连接 {device_info}...")
         
         try:
-            self.client = BleakClient(device_address)
-            await self.client.connect()
-            
-            # 启用心率通知
-            await self.client.start_notify(
-                HEART_RATE_MEASUREMENT_UUID,
-                self.notification_handler
-            )
-            
-            self.status_label.setText(f"已连接 {device_info}")
-            self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
-            
-            # 设置自动断开定时器（如果设置了时间）
-            duration = self.duration_spin.value()
-            if duration > 0:
-                QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
+            success = await self.ble_monitor.connect_device(device_address)
+            if success:
+                self.status_label.setText(f"已连接 {device_info}")
+                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
+                
+                # 设置自动断开定时器（如果设置了时间）
+                duration = self.duration_spin.value()
+                if duration > 0:
+                    QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
             
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
@@ -314,69 +414,46 @@ class HeartRateMonitorGUI(QMainWindow):
     @asyncSlot()
     async def disconnect_device(self):
         """断开当前连接"""
-        if self.client and self.client.is_connected:
-            try:
-                await self.client.stop_notify(HEART_RATE_MEASUREMENT_UUID)
-                await self.client.disconnect()
+        try:
+            success = await self.ble_monitor.disconnect_device()
+            if success:
                 self.status_label.setText("已断开连接")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
                 
                 # 显示收集的数据摘要
-                if self.heart_rate_data:
-                    min_hr = min(hr for _, hr in self.heart_rate_data)
-                    max_hr = max(hr for _, hr in self.heart_rate_data)
-                    avg_hr = sum(hr for _, hr in self.heart_rate_data) / len(self.heart_rate_data)
+                stats = self.ble_monitor.get_heart_rate_stats()
+                if stats:
                     self.heart_rate_display.append(
                         f"\n心率统计:\n"
-                        f"最低: {min_hr} BPM\n"
-                        f"最高: {max_hr} BPM\n"
-                        f"平均: {avg_hr:.1f} BPM\n"
-                        f"共记录 {len(self.heart_rate_data)} 条数据"
+                        f"最低: {stats['min']} BPM\n"
+                        f"最高: {stats['max']} BPM\n"
+                        f"平均: {stats['avg']:.1f} BPM\n"
+                        f"共记录 {stats['count']} 条数据"
                     )
                 
-            except Exception as e:
-                self.status_label.setText(f"断开连接错误: {str(e)}")
-    
-    def notification_handler(self, sender, data):
-        """处理心率通知数据"""
-        heart_rate = self._parse_heart_rate(data)
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # 更新UI
-        self.floating_window.update_heart_rate(heart_rate)
-        self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
-        
-        # 保存数据
-        self.heart_rate_data.append((timestamp, heart_rate))
-    
-    def _parse_heart_rate(self, data):
-        """解析心率数据"""
-        flags = data[0]
-        heart_rate_value_format = (flags & 0x01) == 0x01
-        
-        if heart_rate_value_format:
-            heart_rate = int.from_bytes(data[1:3], byteorder='little')
-        else:
-            heart_rate = data[1]
-            
-        return heart_rate
+        except Exception as e:
+            self.status_label.setText(f"断开连接错误: {str(e)}")
     
     def closeEvent(self, event):
         """窗口关闭时断开连接"""
-        if self.client and self.client.is_connected:
+        if self.ble_monitor.client and self.ble_monitor.client.is_connected:
             reply = QMessageBox.question(
                 self, '确认',
                 "当前已连接设备，确定要退出吗?",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             
             if reply == QMessageBox.Yes:
-                asyncio.create_task(self.disconnect_device())
+                self.disconnect_device()  # 直接调用即可
                 self.floating_window.close()
+                if self.tray_icon:
+                    self.tray_icon.hide()
                 event.accept()
             else:
                 event.ignore()
         else:
             self.floating_window.close()
+            if self.tray_icon:
+                self.tray_icon.hide()
             event.accept()
 
 if __name__ == "__main__":

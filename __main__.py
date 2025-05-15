@@ -4,9 +4,9 @@ import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QListWidget, QWidget, QTextEdit,
                              QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog,
-                             QSystemTrayIcon, QMenu, QSlider, QColorDialog)
+                             QSystemTrayIcon, QMenu, QSlider, QColorDialog, QFontDialog)
 from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-from PyQt5.QtGui import QColor, QIcon
+from PyQt5.QtGui import QColor, QIcon, QFont
 from qasync import QEventLoop, asyncSlot
 
 from Blegetheartbeat import BLEHeartRateMonitor
@@ -15,9 +15,11 @@ class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.text_color = QColor(255, 255, 255)  # 默认白色
+        self.text_color = QColor(218, 63, 63)
         self.bg_color = QColor(0, 0, 0)
-        self.bg_opacity = 150  # 默认透明度
+        self.bg_opacity = 50  # 默认透明度
+        self.font_size = 30  # 默认字体大小
+        self.padding = 10  # 默认内边距
         self.setup_ui()
         
     def setup_ui(self):
@@ -37,7 +39,6 @@ class FloatingHeartRateWindow(QWidget):
         self.update_style()
         
         layout.addWidget(self.heart_rate_label)
-        self.setMinimumSize(QSize(150, 100))
         
         # 窗口拖动功能
         self.old_pos = self.pos()
@@ -76,23 +77,34 @@ class FloatingHeartRateWindow(QWidget):
         """更新样式表"""
         self.heart_rate_label.setStyleSheet(f"""
             QLabel {{
-                font-size: 48px; 
+                font-size: {self.font_size}px; 
                 font-weight: bold;
                 color: rgba({self.text_color.red()}, {self.text_color.green()}, {self.text_color.blue()}, 255);
                 background-color: rgba({self.bg_color.red()}, {self.bg_color.green()}, {self.bg_color.blue()}, {self.bg_opacity});
                 border-radius: 10px;
-                padding: 20px;
+                padding: {self.padding}px;
             }}
         """)
+        self.adjustSize()  # 调整窗口大小以适应新样式
     
-    def set_text_color(self, color):
+    def set_text_color(self, color: QColor):
         """设置文字颜色"""
         self.text_color = color
         self.update_style()
     
-    def set_bg_opacity(self, opacity):
+    def set_bg_opacity(self, opacity: int):
         """设置背景透明度"""
         self.bg_opacity = opacity
+        self.update_style()
+    
+    def set_font_size(self, size):
+        """设置字体大小"""
+        self.font_size = size
+        self.update_style()
+    
+    def set_padding(self, padding):
+        """设置内边距"""
+        self.padding = padding
         self.update_style()
 
 class HeartRateMonitorGUI(QMainWindow):
@@ -219,7 +231,7 @@ class HeartRateMonitorGUI(QMainWindow):
         
         self.text_color_preview = QLabel()
         self.text_color_preview.setFixedSize(20, 20)
-        self.text_color_preview.setStyleSheet("background-color: white; border: 1px solid black;")
+        self.text_color_preview.setStyleSheet(f"background-color: {self.floating_window.text_color.name()}; border: 1px solid black;")
         
         color_layout.addWidget(QLabel("文字颜色:"))
         color_layout.addWidget(self.text_color_button)
@@ -227,11 +239,34 @@ class HeartRateMonitorGUI(QMainWindow):
         color_layout.addStretch()
         float_layout.addLayout(color_layout)
         
+        # 字体大小设置
+        font_layout = QHBoxLayout()
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(10, 100)
+        self.font_size_spin.setValue(48)
+        self.font_size_spin.valueChanged.connect(self.set_font_size)
+        
+        font_layout.addWidget(QLabel("字体大小:"))
+        font_layout.addWidget(self.font_size_spin)
+        float_layout.addLayout(font_layout)
+        
+        # 背景内边距设置
+        padding_layout = QHBoxLayout()
+        self.padding_spin = QSpinBox()
+        self.padding_spin.setRange(0, 100)
+        self.padding_spin.setValue(20)
+        self.padding_spin.valueChanged.connect(self.set_padding)
+        
+        padding_layout.addWidget(QLabel("背景内边距:"))
+        padding_layout.addWidget(self.padding_spin)
+        float_layout.addLayout(padding_layout)
+        
         # 背景透明度设置
         opacity_layout = QHBoxLayout()
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(0, 255)
-        self.opacity_slider.setValue(150)
+        bgop = self.floating_window.bg_opacity
+        self.opacity_slider.setValue(bgop)
         self.opacity_slider.valueChanged.connect(self.set_bg_opacity)
         
         opacity_layout.addWidget(QLabel("背景透明度:"))
@@ -271,19 +306,63 @@ class HeartRateMonitorGUI(QMainWindow):
             self.tray_icon.setIcon(QIcon("heart-rate.png"))
 
             tray_menu = QMenu()
-            show_action = tray_menu.addAction("显示主窗口")
-            show_action.triggered.connect(self.show)
-            quit_action = tray_menu.addAction("退出")
-            quit_action.triggered.connect(self.close)
+            
+            # 添加菜单项
+            show_settings_action = tray_menu.addAction("打开设置")
+            show_settings_action.triggered.connect(self.show_settings)
+            
+            toggle_float_action = tray_menu.addAction("关闭浮窗")
+            toggle_float_action.triggered.connect(self.toggle_float_window_via_tray)
+            
+            tray_menu.addSeparator()
+            
+            quit_action = tray_menu.addAction("退出程序")
+            quit_action.triggered.connect(self.quit_application)
             
             self.tray_icon.setContextMenu(tray_menu)
             self.tray_icon.show()
             self.tray_icon.activated.connect(self.on_tray_icon_activated)
     
+    def show_settings(self):
+        """显示设置窗口"""
+        self.show()
+        self.activateWindow()  # 激活窗口使其获得焦点
+    
+    def toggle_float_window_via_tray(self):
+        """通过托盘菜单切换浮动窗口"""
+        action = self.sender()
+        if self.floating_window.isVisible():
+            self.floating_window.hide()
+            action.setText("显示浮窗")
+        else:
+            self.floating_window.show()
+            action.setText("关闭浮窗")
+    
+    def quit_application(self):
+        """退出应用程序"""
+        if self.ble_monitor.client and self.ble_monitor.client.is_connected:
+            reply = QMessageBox.question(
+                self, '确认',
+                "当前已连接设备，确定要退出吗?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            
+            if reply == QMessageBox.Yes:
+                self.close_application()
+        else:
+            self.close_application()
+    
+    def close_application(self):
+        """执行退出程序的操作"""
+        if self.tray_icon:
+            self.tray_icon.hide()
+        self.floating_window.close()
+        QApplication.quit()
+    
     def on_tray_icon_activated(self, reason):
         """托盘图标点击事件"""
-        if reason == QSystemTrayIcon.DoubleClick:
-            self.show()
+        if reason == QSystemTrayIcon.Trigger:  # 单击
+            # 显示托盘菜单
+            self.tray_icon.contextMenu().popup(self.tray_icon.geometry().center())
     
     def toggle_tray_icon(self, state):
         """切换托盘图标显示"""
@@ -321,6 +400,14 @@ class HeartRateMonitorGUI(QMainWindow):
             self.floating_window.set_text_color(color)
             self.text_color_preview.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
     
+    def set_font_size(self, size):
+        """设置字体大小"""
+        self.floating_window.set_font_size(size)
+    
+    def set_padding(self, padding):
+        """设置背景内边距"""
+        self.floating_window.set_padding(padding)
+    
     def set_bg_opacity(self, value):
         """设置背景透明度"""
         self.floating_window.set_bg_opacity(value)
@@ -351,7 +438,6 @@ class HeartRateMonitorGUI(QMainWindow):
             self.disconnect_button.setEnabled(True)
             self.scan_button.setEnabled(False)
         else:
-            self.status_label.setText("未连接")
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)
             self.scan_button.setEnabled(True)
@@ -393,13 +479,14 @@ class HeartRateMonitorGUI(QMainWindow):
             
         device_info = selected_item.text()
         device_address = device_info[device_info.find("(")+1:device_info.find(")")]
+        device_name = device_info[:device_info.find("(")]
         
-        self.status_label.setText(f"正在连接 {device_info}...")
+        self.status_label.setText(f"正在连接 {device_name}...")
         
         try:
             success = await self.ble_monitor.connect_device(device_address)
             if success:
-                self.status_label.setText(f"已连接 {device_info}")
+                self.status_label.setText(f"已连接 {device_name}")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
                 
                 # 设置自动断开定时器（如果设置了时间）
@@ -435,26 +522,27 @@ class HeartRateMonitorGUI(QMainWindow):
             self.status_label.setText(f"断开连接错误: {str(e)}")
     
     def closeEvent(self, event):
-        """窗口关闭时断开连接"""
-        if self.ble_monitor.client and self.ble_monitor.client.is_connected:
-            reply = QMessageBox.question(
-                self, '确认',
-                "当前已连接设备，确定要退出吗?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            
-            if reply == QMessageBox.Yes:
-                self.disconnect_device()  # 直接调用即可
-                self.floating_window.close()
-                if self.tray_icon:
-                    self.tray_icon.hide()
-                event.accept()
-            else:
-                event.ignore()
+        """窗口关闭事件"""
+        if self.tray_icon and self.tray_icon.isVisible():
+            # 如果启用了托盘图标，则隐藏窗口而不是退出
+            self.hide()
+            event.ignore()
         else:
-            self.floating_window.close()
-            if self.tray_icon:
-                self.tray_icon.hide()
-            event.accept()
+            # 否则正常退出
+            if self.ble_monitor.client and self.ble_monitor.client.is_connected:
+                reply = QMessageBox.question(
+                    self, '确认',
+                    "当前已连接设备，确定要退出吗?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                
+                if reply == QMessageBox.Yes:
+                    self.close_application()
+                    event.accept()
+                else:
+                    event.ignore()
+            else:
+                self.close_application()
+                event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -140,6 +140,7 @@ class HeartRateMonitorGUI(QMainWindow):
         self.floating_window = FloatingHeartRateWindow()
         self.tray_icon = None
         self.linking = False
+        self.noscanerror_win = False
         self.setup_ui()
         self.setup_tray_icon()
         QTimer.singleShot(500, lambda: self.scan_devices())
@@ -534,6 +535,16 @@ class HeartRateMonitorGUI(QMainWindow):
                 self.device_list.addItem(f"{device.name} ({device.address})")
 
             self.device_list_status.setText(f"找到 {len(devices)} 个设备")
+            self.noscanerror_win = False
+        except WindowsError as e:
+            print(e.winerror)
+            if e.winerror == -2147020577:
+                self.device_list_status.setText("请打开蓝牙")
+            else:
+                self.device_list_status.setText(f"未知错误: {e.winerror}")
+            if not self.noscanerror_win:
+                QMessageBox.warning(self, "错误", e.strerror)
+                self.noscanerror_win = True
         except Exception as e:
             self.device_list_status.setText(f"扫描错误: {str(e)}")
 

@@ -192,7 +192,12 @@ class HeartRateMonitorGUI(QMainWindow):
         scan_layout.addLayout(btn_layout)
 
         self.device_list = QListWidget()
-        scan_layout.addWidget(QLabel("可用的BLE设备:"))
+        device_textlayout = QHBoxLayout()
+        self.device_list_status = QLabel()
+
+        device_textlayout.addWidget(QLabel("可用的BLE设备:"))
+        device_textlayout.addWidget(self.device_list_status)
+        scan_layout.addLayout(device_textlayout)
         scan_layout.addWidget(self.device_list)
 
         scan_group.setLayout(scan_layout)
@@ -518,7 +523,7 @@ class HeartRateMonitorGUI(QMainWindow):
     @asyncSlot()
     async def scan_devices(self):
         """扫描BLE设备"""
-        self.status_label.setText("正在扫描设备...")
+        self.device_list_status.setText("正在扫描设备...")
 
         try:
             devices = await self.ble_monitor.scan_devices()
@@ -528,9 +533,9 @@ class HeartRateMonitorGUI(QMainWindow):
             for device in devices:
                 self.device_list.addItem(f"{device.name} ({device.address})")
 
-            self.status_label.setText(f"找到 {len(devices)} 个设备")
+            self.device_list_status.setText(f"找到 {len(devices)} 个设备")
         except Exception as e:
-            self.status_label.setText(f"扫描错误: {str(e)}")
+            self.device_list_status.setText(f"扫描错误: {str(e)}")
 
     def auto_scan(self, state):
         """启停自动扫描设备"""
@@ -582,6 +587,7 @@ class HeartRateMonitorGUI(QMainWindow):
             self.disconnect_button.setEnabled(False)
             success = await self.ble_monitor.disconnect_device()
             if success:
+                self.quit_setstadus = True
                 self.status_label.setText("已断开连接")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
 

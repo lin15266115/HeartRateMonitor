@@ -13,12 +13,14 @@ class BLEHeartRateMonitor:
         self.devices = []
         self.heart_rate_data = []
         self.heart_rate_callback = None
+
+        self.filter_empty = True
         
     async def scan_devices(self):
         """扫描BLE设备"""
         self.devices = await BleakScanner.discover()
         # 过滤掉名称为None的设备
-        return [d for d in self.devices if d.name is not None]
+        return [d for d in self.devices if d.name is not None] if self.filter_empty else self.devices
     
     async def connect_device(self, device_address):
         """连接设备"""

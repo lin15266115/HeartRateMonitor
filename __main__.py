@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import asyncio
 import sys
@@ -66,15 +66,35 @@ class FloatingHeartRateWindow(QWidget):
     def update_heart_rate(self, rate):
         """更新心率显示"""
         self.heart_rate_label.setText(self.text_base.format(rate=rate))
+
+        mc = 200
         
         # 根据心率值改变背景颜色
-        if rate > 100:
-            self.bg_color = QColor(255, 0, 0)  # 红色
-        elif rate < 60:
-            self.bg_color = QColor(0, 0, 255)  # 蓝色
-        else:
-            self.bg_color = QColor(0, 255, 0)  # 绿色
-            
+        if not isinstance(rate, int):
+            self.bg_color = QColor(0, 0, 0)
+        elif rate < 40:
+            self.bg_color = QColor(0, 0, mc)
+        elif rate < 55:
+            rate_qz = (rate - 40)/15
+            grean = int(mc * rate_qz)
+            self.bg_color = QColor(0, grean, mc)
+        elif rate < 70:
+            rate_qz = 1- (rate - 55)/15
+            blue = int(mc * rate_qz)
+            self.bg_color = QColor(0, mc, blue)
+        elif rate < 90:
+            self.bg_color = QColor(0, mc, 0)
+        elif rate < 105:
+            rate_qz = (rate - 90)/15
+            red = int(mc * rate_qz)
+            self.bg_color = QColor(red, mc, 0)  # 红色
+        elif rate < 120:
+            rate_qz = 1 - (rate - 105)/15
+            grean = int(mc * rate_qz)
+            self.bg_color = QColor(mc, grean, 0)
+        elif rate >= 120: 
+            self.bg_color = QColor(255, 0, 0)
+
         self.update_style()
 
     def update_style(self):
@@ -119,10 +139,10 @@ class HeartRateMonitorGUI(QMainWindow):
         self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
         self.floating_window = FloatingHeartRateWindow()
         self.tray_icon = None
+        self.linking = False
         self.setup_ui()
         self.setup_tray_icon()
-        # 修复异步方法调用方式
-        QTimer.singleShot(500, lambda: self.scan_devices())  # 直接调用asyncSlot方法，无需create_task
+        QTimer.singleShot(500, lambda: self.scan_devices())
 
     def setup_ui(self):
         """设置GUI界面"""
@@ -150,15 +170,25 @@ class HeartRateMonitorGUI(QMainWindow):
         self.refresh_button.clicked.connect(self.scan_devices)
 
         arf_layout = QHBoxLayout()
-        self.auto_refresh_checkbox = QLabel("自动刷新")
-        self.auto_refresh_button = QPushButton()
-        self.auto_refresh_button.setCheckable(True)
-        # 待实现
-        arf_layout.addWidget(self.auto_refresh_checkbox)
+        auto_refresh_Label = QLabel("自动刷新")
+        self.auto_refresh_button = QCheckBox()
+        self.auto_refresh_button.stateChanged.connect(self.auto_scan)
+        self.auto_refresh_button.setChecked(True)
+        arf_layout.addWidget(auto_refresh_Label)
         arf_layout.addWidget(self.auto_refresh_button)
 
-        btn_layout.addLayout(arf_layout)
+        # 过滤无名设备
+        fe_layout = QHBoxLayout()
+        filter_empty_Label = QLabel("过滤无名设备")
+        self.filter_empty_button = QCheckBox()
+        self.filter_empty_button.stateChanged.connect(self.filter_empty)
+        self.filter_empty_button.setChecked(True)
+        fe_layout.addWidget(filter_empty_Label)
+        fe_layout.addWidget(self.filter_empty_button)
+
         btn_layout.addWidget(self.refresh_button)
+        btn_layout.addLayout(arf_layout)
+        btn_layout.addLayout(fe_layout)
         scan_layout.addLayout(btn_layout)
 
         self.device_list = QListWidget()
@@ -462,13 +492,14 @@ class HeartRateMonitorGUI(QMainWindow):
 
     def update_ui(self):
         """更新UI状态"""
-        if self.ble_monitor.client and self.ble_monitor.client.is_connected:
+        if (self.ble_monitor.client and self.ble_monitor.client.is_connected) or self.linking:
             self.quit_setstadus = False
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
         else:
             if self.quit_setstadus == False:
                 self.status_label.setText("链接被断开")
+                self.floating_window.update_heart_rate("--")
                 self.quit_setstadus = True
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)
@@ -481,14 +512,18 @@ class HeartRateMonitorGUI(QMainWindow):
         # 更新数据显示区域
         self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
 
+    def filter_empty(self, state):
+            self.ble_monitor.filter_empty = state
+
     @asyncSlot()
     async def scan_devices(self):
         """扫描BLE设备"""
-        self.device_list.clear()
         self.status_label.setText("正在扫描设备...")
 
         try:
             devices = await self.ble_monitor.scan_devices()
+
+            self.device_list.clear()
             
             for device in devices:
                 self.device_list.addItem(f"{device.name} ({device.address})")
@@ -496,6 +531,17 @@ class HeartRateMonitorGUI(QMainWindow):
             self.status_label.setText(f"找到 {len(devices)} 个设备")
         except Exception as e:
             self.status_label.setText(f"扫描错误: {str(e)}")
+
+    def auto_scan(self, state):
+        """启停自动扫描设备"""
+        if not hasattr(self, "scan_timer"):
+            self.scan_timer = QTimer()
+            self.scan_timer.timeout.connect(self.scan_devices)
+
+        if state:
+            self.scan_timer.start(5000)
+        else:
+            self.scan_timer.stop()
 
     @asyncSlot()
     async def connect_device(self):
@@ -506,12 +552,14 @@ class HeartRateMonitorGUI(QMainWindow):
             return
 
         device_info = selected_item.text()
-        device_address = device_info[device_info.find("(")+1:device_info.find(")")]
-        device_name = device_info[:device_info.find("(")]
+        findL = device_info.find("(")
+        device_address = device_info[ findL+1 : device_info.find(")") ]
+        device_name = device_info[:findL]
 
         self.status_label.setText(f"正在连接 {device_name}...")
 
         try:
+            self.linking = True
             success = await self.ble_monitor.connect_device(device_address)
             if success:
                 self.status_label.setText(f"已连接 {device_name}")
@@ -525,11 +573,13 @@ class HeartRateMonitorGUI(QMainWindow):
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+        self.linking = False
 
     @asyncSlot()
     async def disconnect_device(self):
         """断开当前连接"""
         try:
+            self.disconnect_button.setEnabled(False)
             success = await self.ble_monitor.disconnect_device()
             if success:
                 self.status_label.setText("已断开连接")

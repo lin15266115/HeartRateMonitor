@@ -1,7 +1,11 @@
-使用了pyqt5和bleak两个第三方库
+### 项目仓库：
+[github](https://github.com/lin15266115/HeartRateMonitor)
+[gitcode](https://gitcode.com/lin15266115/HeartBeat)
 
 ### 1. 安装依赖库
 > pip install pyqt5
+
+> pip install qasync
 
 > pip install bleak
 

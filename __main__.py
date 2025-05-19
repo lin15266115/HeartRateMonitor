@@ -1,30 +1,60 @@
-__version__ = "1.0.1"
+__version__ = "1.1.0"
+import logging
+import os
+# 创建日志记录器
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-import asyncio
-import sys
-import datetime
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QListWidget, QWidget, QTextEdit, QLineEdit,
-    QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog,
-    QSystemTrayIcon, QMenu, QSlider, QColorDialog, QFontDialog)
-from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-from PyQt5.QtGui import QColor, QIcon, QFont
-from qasync import QEventLoop, asyncSlot
+if not os.path.exists('log'):
+    os.mkdir('log')
+if os.path.exists('log/loger1.log'):
+    if os.path.exists('log/loger2.log'):
+        os.remove('log/loger2.log')
+    os.rename('log/loger1.log', 'log/loger2.log')
 
-from Blegetheartbeat import BLEHeartRateMonitor
+str
+handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
+handler.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+logger.info(f'运行程序 -{__version__} -{__file__}')
+
+try:
+    import asyncio
+    import sys
+    import datetime
+    from PyQt5.QtWidgets import (
+        QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
+        QPushButton, QLabel, QListWidget, QWidget, QTextEdit, QLineEdit,
+        QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog,
+        QSystemTrayIcon, QMenu, QSlider, QColorDialog, QFontDialog)
+    from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
+    from PyQt5.QtGui import QColor, QIcon, QFont
+    from qasync import QEventLoop, asyncSlot
+
+    from Blegetheartbeat import BLEHeartRateMonitor
+except  ModuleNotFoundError as e:
+    logger.error(f"缺少依赖包 {e.name}")
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.text_color = QColor(218, 63, 63)
-        self.text_base = "心率: {rate}"
-        self.bg_color = QColor(0, 0, 0)
-        self.bg_opacity = 50  # 默认透明度
-        self.font_size = 30  # 默认字体大小
-        self.padding = 10  # 默认内边距
-        self.setup_ui()
+        logger.info("初始化浮动心率显示窗口")
+        try:
+            super().__init__(parent)
+            self.text_color = QColor(218, 63, 63)
+            self.text_base = "心率: {rate}"
+            self.bg_color = QColor(0, 0, 0)
+            self.bg_opacity = 50  # 默认透明度
+            self.font_size = 30  # 默认字体大小
+            self.padding = 10  # 默认内边距
+            self.setup_ui()
+            logger.info("初始化完成")
+        except Exception as e:
+            logger.error("初始化失败: {}".format(e))
 
     def setup_ui(self):
         self.setWindowTitle("实时心率")
@@ -133,17 +163,21 @@ class FloatingHeartRateWindow(QWidget):
 
 class HeartRateMonitorGUI(QMainWindow):
     def __init__(self):
-        super().__init__()
-        self.quit_setstadus = True
-        self.ble_monitor = BLEHeartRateMonitor()
-        self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
-        self.floating_window = FloatingHeartRateWindow()
-        self.tray_icon = None
-        self.linking = False
-        self.noscanerror_win = False
-        self.setup_ui()
-        self.setup_tray_icon()
-        QTimer.singleShot(500, lambda: self.scan_devices())
+        logger.info("初始化GUI")
+        try:
+            super().__init__()
+            self.quit_setstadus = True
+            self.ble_monitor = BLEHeartRateMonitor()
+            self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
+            self.floating_window = FloatingHeartRateWindow()
+            self.tray_icon = None
+            self.linking = False
+            self.noscanerror_win = False
+            self.setup_ui()
+            self.setup_tray_icon()
+            QTimer.singleShot(500, lambda: self.scan_devices())
+        except Exception as e:
+            logger.error(f"GUI 初始化错误: {e}")
 
     def setup_ui(self):
         """设置GUI界面"""
@@ -359,7 +393,12 @@ class HeartRateMonitorGUI(QMainWindow):
         """设置系统托盘图标"""
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray_icon = QSystemTrayIcon(self)
-            self.tray_icon.setIcon(QIcon("heart-rate.png"))
+            if os.path.exists("heart-rate.png"):
+                self.tray_icon.setIcon(QIcon("heart-rate.png"))
+            else:
+                # 默认图标
+                self.tray_icon.setIcon(QIcon())
+                logger.warning("未找到图标文件，将使用默认图标。")
 
             tray_menu = QMenu()
 
@@ -540,13 +579,20 @@ class HeartRateMonitorGUI(QMainWindow):
             print(e.winerror)
             if e.winerror == -2147020577:
                 self.device_list_status.setText("请打开蓝牙")
+                logger.debug("蓝牙未开启")
+                errortxt = "蓝牙未开启，请打开蓝牙"
             else:
                 self.device_list_status.setText(f"未知错误: {e.winerror}")
+                errortxt = f"-{e.strerror} [{e.winerror}] "
+                logger.error(f"窗口错误: {errortxt}")
+
             if not self.noscanerror_win:
-                QMessageBox.warning(self, "错误", e.strerror)
+                QMessageBox.warning(self, "错误", errortxt)
                 self.noscanerror_win = True
+
         except Exception as e:
             self.device_list_status.setText(f"扫描错误: {str(e)}")
+            logger.error(f"扫描BLE设备错误: {e}")
 
     def auto_scan(self, state):
         """启停自动扫描设备"""
@@ -573,6 +619,7 @@ class HeartRateMonitorGUI(QMainWindow):
         device_name = device_info[:findL]
 
         self.status_label.setText(f"正在连接 {device_name}...")
+        logger.info(f"尝试连接 {device_info}")
 
         try:
             self.linking = True
@@ -583,12 +630,14 @@ class HeartRateMonitorGUI(QMainWindow):
 
                 # 设置自动断开定时器（如果设置了时间）
                 duration = self.duration_spin.value()
+                logger.info(f"已连接到 {device_name}, 设置自动断开时间 {duration} 秒(0表示不自动断开)")
                 if duration > 0:
                     QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
 
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+            logger.error(f"连接错误: {e}")
         self.linking = False
 
     @asyncSlot()
@@ -601,6 +650,7 @@ class HeartRateMonitorGUI(QMainWindow):
                 self.quit_setstadus = True
                 self.status_label.setText("已断开连接")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
+                logger.info("已断开连接")
 
                 # 显示收集的数据摘要
                 stats = self.ble_monitor.get_heart_rate_stats()
@@ -615,6 +665,7 @@ class HeartRateMonitorGUI(QMainWindow):
 
         except Exception as e:
             self.status_label.setText(f"断开连接错误: {str(e)}")
+            logger.error(f"断开连接错误: {str(e)}")
 
     def closeEvent(self, event):
         """窗口关闭事件"""
@@ -640,14 +691,19 @@ class HeartRateMonitorGUI(QMainWindow):
                 event.accept()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    try:
+        app = QApplication(sys.argv)
 
-    # 设置异步事件循环
-    loop = QEventLoop(app)
-    asyncio.set_event_loop(loop)
+        # 设置异步事件循环
+        loop = QEventLoop(app)
+        asyncio.set_event_loop(loop)
 
-    window = HeartRateMonitorGUI()
-    window.show()
+        window = HeartRateMonitorGUI()
+        window.show()
 
-    with loop:
-        loop.run_forever()
+        with loop:
+            loop.run_forever()
+    except Exception as e:
+        logger.error(f"未标识的异常：{e}")
+        window.close_application()
+        sys.exit(1)

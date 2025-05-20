@@ -1,6 +1,7 @@
 __version__ = "1.1.0"
 import logging
 import os
+from typing import Any
 # 创建日志记录器
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -21,6 +22,47 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 logger.info(f'运行程序 -{__version__} -{__file__}')
+
+from configparser import ConfigParser
+
+
+
+SETTINGTYPE = dict[str, Any]
+config_file = 'config.ini'
+
+config = ConfigParser()
+
+def init_config():
+    global config
+    try:
+        if not os.path.exists(config_file):
+            logger.warning("未找到配置文件 config.ini, 尝试创建默认配置文件")
+            config.add_section('FloatingWindow')
+            save_settings()
+        config.read(config_file, encoding='utf-8')
+    except Exception as e:
+        logger.error(f"无法加载配置文件: {e}")
+
+def update_settings(**kwargs: SETTINGTYPE):
+    global config
+    try:
+        for section in kwargs.keys():
+            if not config.has_section(section):
+                config.add_section(section)
+            data = kwargs[section]
+            for key in data.keys():
+                config.set(section, key, str(data[key]))
+        save_settings()
+    except Exception as e:
+        logger.error(f"修改配置失败: {e}")
+
+def save_settings():
+    global config
+    logger.info("保存配置文件")
+    with open(config_file, 'w', encoding='utf-8') as configfile:
+        config.write(configfile)
+
+init_config()
 
 try:
     import asyncio
@@ -45,16 +87,20 @@ class FloatingHeartRateWindow(QWidget):
         logger.info("初始化浮动心率显示窗口")
         try:
             super().__init__(parent)
-            self.text_color = QColor(218, 63, 63)
-            self.text_base = "心率: {rate}"
+            self.text_color = QColor(self._get_set("text_color", 4292502628, int))
+            self.text_base = self._get_set('text_base', "心率: {rate}", str)
             self.bg_color = QColor(0, 0, 0)
-            self.bg_opacity = 50  # 默认透明度
-            self.font_size = 30  # 默认字体大小
-            self.padding = 10  # 默认内边距
+            self.bg_opacity = self._get_set('bg_opacity', 50, int)
+            self.font_size = self._get_set('font_size', 30, int)
+            self.padding = self._get_set('padding', 10, int)
             self.setup_ui()
-            logger.info("初始化完成")
+            x = self._get_set('x', "default")
+            y = self._get_set('y', "default")
+            if not (x == "default" or y == "default"):
+                self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
+            logger.info("浮窗初始化完成")
         except Exception as e:
-            logger.error("初始化失败: {}".format(e))
+            logger.error("浮窗初始化失败: {}".format(e))
 
     def setup_ui(self):
         self.setWindowTitle("实时心率")
@@ -86,12 +132,18 @@ class FloatingHeartRateWindow(QWidget):
     def mouseMoveEvent(self, event):
         if self.dragging:
             delta = QPoint(event.globalPos() - self.old_pos)
-            self.move(self.x() + delta.x(), self.y() + delta.y())
+            x = self.x() + delta.x()
+            y = self.y() + delta.y()
+            self.move(
+                 x if -10 < x else -10
+                ,y if -10 < y else -10
+                )
             self.old_pos = event.globalPos()
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.dragging = False
+            self._up_xy()
 
     def update_heart_rate(self, rate):
         """更新心率显示"""
@@ -144,22 +196,42 @@ class FloatingHeartRateWindow(QWidget):
     def set_text_color(self, color: QColor):
         """设置文字颜色"""
         self.text_color = color
+        self._up_set('text_color', color.rgb())
         self.update_style()
 
-    def set_bg_opacity(self, opacity: int):
+    def set_bg_opacity(self, opacity: int, update_setting: bool = True):
         """设置背景透明度"""
         self.bg_opacity = opacity
+        if update_setting:
+            self._up_set('bg_opacity', opacity)
         self.update_style()
 
     def set_font_size(self, size):
         """设置字体大小"""
         self.font_size = size
+        self._up_set('font-size', size)
         self.update_style()
 
     def set_padding(self, padding):
         """设置内边距"""
         self.padding = padding
+        self._up_set('padding', padding)
         self.update_style()
+
+    def _get_set(self, option: str, default, type_ = None):
+        data = config.get('FloatingWindow', option, fallback=default)
+        logger.debug(f'浮窗获取配置项 {option} 的值: {data}')
+        if type_ is None:
+            return data
+        else:return type_(data)
+
+    def _up_set(self, option: str, value):
+        config.set('FloatingWindow', option, str(value))
+        save_settings()
+
+    def _up_xy(self):
+        update_settings(FloatingWindow={'x': self.x(), 'y': self.y()})
+        
 
 class HeartRateMonitorGUI(QMainWindow):
     def __init__(self):
@@ -514,7 +586,12 @@ class HeartRateMonitorGUI(QMainWindow):
 
     def set_bg_opacity(self, value):
         """设置背景透明度"""
-        self.floating_window.set_bg_opacity(value)
+        self.floating_window.set_bg_opacity(value,self.save_set)
+        self.save_set = False
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.save_set = True
 
     def save_data(self):
         """保存心率数据到文件"""
@@ -534,6 +611,7 @@ class HeartRateMonitorGUI(QMainWindow):
                 QMessageBox.information(self, "成功", "数据已保存")
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"保存失败: {str(e)}")
+                logger.error(f"保存数据时出错: {str(e)}")
 
     def update_ui(self):
         """更新UI状态"""
@@ -637,7 +715,7 @@ class HeartRateMonitorGUI(QMainWindow):
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
-            logger.error(f"连接错误: {e}")
+            logger.error(f"连接设备时出错: {e}")
         self.linking = False
 
     @asyncSlot()

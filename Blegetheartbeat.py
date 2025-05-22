@@ -1,7 +1,13 @@
-from bleak import BleakScanner, BleakClient
-import asyncio
-import datetime
 from typing import List, Tuple, Optional, Dict, Callable
+from writer import *
+import datetime
+
+def import_models():
+    """导入依赖库"""
+    global BleakScanner, BleakClient
+    from bleak import BleakScanner, BleakClient
+
+install_models(import_models, "bleak")
 
 # 心率服务UUID
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"

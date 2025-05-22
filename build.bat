@@ -1,8 +1,8 @@
 setlocal
 
-set "PROJECT_NAME=HeartRateMonitor_2"
+set "PROJECT_NAME=HeartRateMonitor_3"
 
-pyinstaller --onefile^
+pyinstaller ^
  --name "%PROJECT_NAME%" ^
  --windowed ^
  --clean ^

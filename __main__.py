@@ -1,6 +1,7 @@
 __version__ = "1.1.0"
 import logging
 import os
+import sys
 from typing import Any
 # 创建日志记录器
 logger = logging.getLogger(__name__)
@@ -25,8 +26,6 @@ logger.info(f'运行程序 -{__version__} -{__file__}')
 
 from configparser import ConfigParser
 
-
-
 SETTINGTYPE = dict[str, Any]
 config_file = 'config.ini'
 
@@ -46,6 +45,7 @@ def init_config():
 def update_settings(**kwargs: SETTINGTYPE):
     global config
     try:
+        logger.info(f"修改配置: {kwargs}")
         for section in kwargs.keys():
             if not config.has_section(section):
                 config.add_section(section)
@@ -58,16 +58,16 @@ def update_settings(**kwargs: SETTINGTYPE):
 
 def save_settings():
     global config
-    logger.info("保存配置文件")
     with open(config_file, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 
+import asyncio
+import datetime
+
 init_config()
 
-try:
-    import asyncio
-    import sys
-    import datetime
+def import_models():
+    global QApplication,QMainWindow,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,QListWidget,QWidget,QTextEdit,QLineEdit,QSpinBox,QMessageBox,QCheckBox,QGroupBox,QFileDialog,QSystemTrayIcon,QMenu,QSlider,QColorDialog,QFontDialog,QTimer,Qt,QPoint,QSize,QColor,QIcon,QFont,QEventLoop,asyncSlot,BLEHeartRateMonitor
     from PyQt5.QtWidgets import (
         QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
         QPushButton, QLabel, QListWidget, QWidget, QTextEdit, QLineEdit,
@@ -78,8 +78,39 @@ try:
     from qasync import QEventLoop, asyncSlot
 
     from Blegetheartbeat import BLEHeartRateMonitor
-except  ModuleNotFoundError as e:
-    logger.error(f"缺少依赖包 {e.name}")
+
+
+try:
+    import_models()
+except ModuleNotFoundError as e:
+    logger.warning(f"缺少依赖包 {e.name}")
+    # 检查是否是编译版本
+    if getattr(sys, 'frozen', False):
+        import_models()
+        logger.error("请确保编译时已安装所有依赖包")
+        sys.exit(1)
+    else:
+        # 尝试下载依赖包
+        logger.info("正在尝试下载依赖包")
+        # 获取python.exe路径
+        python_exe = sys.executable
+        try:
+            REQUIRED_PACKAGES = ["bleak", "pyqt5", "qasync"]
+            for package in REQUIRED_PACKAGES:
+                try:
+                    os.system(f"{python_exe} -m pip install {package}")
+                except Exception as e:
+                    logger.error(f"下载依赖包失败: {e}")
+                    logger.error(f"尝试使用阿里云镜像源下载依赖包 {package}")
+                    os.system(f"{python_exe} -m pip install {package} -i https://mirrors.aliyun.com/pypi/simple/")
+                logger.info(f"已安装依赖包: {package}")
+            logger.info("依赖包安装完成")
+            import_models()
+        except Exception as e:
+            logger.error(f"依赖包安装失败: {e}")
+            sys.exit(1)
+except Exception as e:
+    logger.error(f"无法导入模块: {e}")
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
@@ -181,16 +212,17 @@ class FloatingHeartRateWindow(QWidget):
 
     def update_style(self):
         """更新样式表"""
-        self.heart_rate_label.setStyleSheet(f"""
+        style = f"""
             QLabel {{
-                font-size: {self.font_size}px; 
+                font-size: {self.font_size}px;
                 font-weight: bold;
                 color: rgba({self.text_color.red()}, {self.text_color.green()}, {self.text_color.blue()}, 255);
                 background-color: rgba({self.bg_color.red()}, {self.bg_color.green()}, {self.bg_color.blue()}, {self.bg_opacity});
                 border-radius: 10px;
                 padding: {self.padding}px;
             }}
-        """)
+        """
+        self.heart_rate_label.setStyleSheet(style)
         self.adjustSize()  # 调整窗口大小以适应新样式
 
     def set_text_color(self, color: QColor):
@@ -219,14 +251,18 @@ class FloatingHeartRateWindow(QWidget):
         self.update_style()
 
     def _get_set(self, option: str, default, type_ = None):
-        data = config.get('FloatingWindow', option, fallback=default)
-        logger.debug(f'浮窗获取配置项 {option} 的值: {data}')
+        if type_ == bool:
+            data = config.getboolean('FloatingWindow', option, fallback=default)
+        else :
+            data = config.get('FloatingWindow', option, fallback=default)
+        logger.debug(f'-浮窗 获取配置项 {option} 的值: {data}')
         if type_ is None:
             return data
         else:return type_(data)
 
     def _up_set(self, option: str, value):
         config.set('FloatingWindow', option, str(value))
+        logger.debug(f'-浮窗 更新配置项 {option} 的值: {value}')
         save_settings()
 
     def _up_xy(self):
@@ -367,7 +403,8 @@ class HeartRateMonitorGUI(QMainWindow):
         # 显示控制
         display_layout = QHBoxLayout()
         self.float_window_check = QCheckBox("显示浮动窗口")
-        self.float_window_check.setChecked(True)
+        fwindow_canlook = self.floating_window._get_set('canlook', True, bool)
+        self.float_window_check.setChecked(fwindow_canlook)
         self.float_window_check.stateChanged.connect(self.toggle_floating_window)
 
         self.click_through_check = QCheckBox("鼠标穿透")
@@ -459,7 +496,10 @@ class HeartRateMonitorGUI(QMainWindow):
         self.update_timer.start(1000)  # 每秒更新一次
 
         # 显示浮动窗口
-        self.floating_window.show()
+        if fwindow_canlook:
+            self.floating_window.show()
+        else:
+            self.floating_window.hide()
 
     def setup_tray_icon(self):
         """设置系统托盘图标"""
@@ -543,8 +583,10 @@ class HeartRateMonitorGUI(QMainWindow):
         """切换浮动窗口显示"""
         if state == Qt.Checked:
             self.floating_window.show()
+            self.floating_window._up_set('canlook', True)
         else:
             self.floating_window.hide()
+            self.floating_window._up_set('canlook', False)
 
     def toggle_click_through(self, state):
         """切换鼠标穿透"""
@@ -586,12 +628,13 @@ class HeartRateMonitorGUI(QMainWindow):
 
     def set_bg_opacity(self, value):
         """设置背景透明度"""
-        self.floating_window.set_bg_opacity(value,self.save_set)
-        self.save_set = False
+        self.floating_window.set_bg_opacity(value,self.save_opacity)
+        self.save_opacity = False
 
     def mouseReleaseEvent(self, event):
+        """鼠标释放事件"""
         if event.button() == Qt.LeftButton:
-            self.save_set = True
+            self.save_opacity = True # 保存浮窗透明度
 
     def save_data(self):
         """保存心率数据到文件"""
@@ -780,6 +823,7 @@ if __name__ == "__main__":
         window.show()
 
         with loop:
+            screens = app.screens()
             loop.run_forever()
     except Exception as e:
         logger.error(f"未标识的异常：{e}")

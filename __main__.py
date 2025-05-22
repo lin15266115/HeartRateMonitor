@@ -28,10 +28,12 @@ import urllib.request
 def checkupdata() -> tuple[bool, str]:
     logger.info("检查更新中...")
     try:
-        url = "https://gitcode.com/lin15266115/HeartBeat/raw/main/version.json"  # 使用raw链接获取原始JSON
-        with urllib.request.urlopen(url) as response:
-            data = response.read().decode('utf-8')
-            data = json.loads(data)
+        url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
+        
+        with urllib.request.urlopen(url) as response: 
+            # 读取json格式
+            data = json.loads(response.read().decode('utf-8'))
+
             if is_frozen:
                 vnumber = data['frozen-version']
                 vname = data['frozen-name']
@@ -49,7 +51,6 @@ def checkupdata() -> tuple[bool, str]:
         logger.warning(f"更新检查失败: {e}")
     return False, ''
 
-import traceback
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)

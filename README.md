@@ -7,9 +7,9 @@
 
 ## 运行程序
 
-**方法1**: <u>根据系统环境修改 [start.bat](start.bat) 后再双击 [start.bat](start.bat) 即可运行</u>
+**方法1**: 使用代码运行 -<u>**下载zip** 解压后根据python环境修改 [start.bat](start.bat) 后再双击 [start.bat](start.bat) 即可运行</u>
 
-**方法2**: <u>下载已经编译好的程序, 点击 *HeartRateMonitor.exe* 运行</u>
+**方法2**: 使用exe程序运行 -<u>下载已经编译好的程序, 点击 *HeartRateMonitor.exe* 运行</u>
 
 如果[方法1]直接运行出现安装依赖相关错误，可以通过命令行手动安装依赖库：
 

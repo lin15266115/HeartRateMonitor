@@ -4,192 +4,28 @@ import asyncio
 import datetime
 import webbrowser
 
-from writer import *
+from .fhrw import *
+from  writer import *
 from Blegetheartbeat import BLEHeartRateMonitor
 
-__all__  = [
-     "QApplication","QEventLoop","asyncio"
-    ,"HeartRateMonitorGUI"
-    ,"sys"
-    ]
-
-init_config()
 
 def import_PyQt5():
-    global webbrowser,QApplication,QMainWindow,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,QListWidget,QWidget,QTextEdit,QLineEdit,QSpinBox,QMessageBox,QCheckBox,QGroupBox,QFileDialog,QSystemTrayIcon,QMenu,QSlider,QColorDialog,QFontDialog,QTimer,Qt,QPoint,QSize,QColor,QIcon,QFont,QEventLoop,asyncSlot,BLEHeartRateMonitor
+    from . import importm
+    for key, mode in importm.import_PyQt5().items():
+        globals()[key] = mode
 
-    from PyQt5.QtWidgets import (
-        QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
-        QPushButton, QLabel, QListWidget, QWidget, QTextEdit, QLineEdit,
-        QSpinBox, QMessageBox, QCheckBox, QGroupBox, QFileDialog,
-        QSystemTrayIcon, QMenu, QSlider, QColorDialog, QFontDialog)
-    from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-    from PyQt5.QtGui import QColor, QIcon, QFont
+# 触发IDE python类型提示
+try:
+    if nothing:from .importm import * # type: ignore
+except:pass
 
 def import_qasync():
     global QEventLoop, asyncSlot
     from qasync import QEventLoop, asyncSlot
 
+pip_install_models(import_PyQt5, "pyqt5")
+pip_install_models(import_qasync, "qasync")
 
-install_models(import_PyQt5, "pyqt5")
-install_models(import_qasync, "qasync")
-
-class FloatingHeartRateWindow(QWidget):
-    """浮动心率显示窗口"""
-    def __init__(self, parent=None):
-        logger.info("初始化浮动心率显示窗口")
-        try:
-            super().__init__(parent)
-            self.text_color = QColor(self._get_set("text_color", 4292502628, int))
-            self.text_base = self._get_set('text_base', "心率: {rate}", str)
-            self.bg_color = QColor(0, 0, 0)
-            self.bg_opacity = self._get_set('bg_opacity', 50, int)
-            self.font_size = self._get_set('font_size', 30, int)
-            self.padding = self._get_set('padding', 10, int)
-            self.setup_ui()
-            x = self._get_set('x', "default")
-            y = self._get_set('y', "default")
-            if not (x == "default" or y == "default"):
-                self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
-            logger.info("浮窗初始化完成")
-        except Exception as e:
-            logger.error("浮窗初始化失败: {}".format(e))
-
-    def setup_ui(self):
-        self.setWindowTitle("实时心率")
-        self.setWindowFlags(
-            Qt.WindowStaysOnTopHint | 
-            Qt.FramelessWindowHint | 
-            Qt.Tool
-        )
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.heart_rate_label = QLabel(self.text_base.format(rate= "--"))
-        self.heart_rate_label.setAlignment(Qt.AlignCenter)
-        self.update_style()
-
-        layout.addWidget(self.heart_rate_label)
-
-        # 窗口拖动功能
-        self.old_pos = self.pos()
-        self.dragging = False
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.old_pos = event.globalPos()
-            self.dragging = True
-
-    def mouseMoveEvent(self, event):
-        if self.dragging:
-            delta = QPoint(event.globalPos() - self.old_pos)
-            x = self.x() + delta.x()
-            y = self.y() + delta.y()
-            self.move(
-                 x if -10 < x else -10
-                ,y if -10 < y else -10
-                )
-            self.old_pos = event.globalPos()
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.dragging = False
-            self._up_xy()
-
-    def update_heart_rate(self, rate=None):
-        """更新心率显示"""
-        self.heart_rate_label.setText(self.text_base.format(rate=rate if rate else '--'))
-
-        mc = 200
-        
-        # 根据心率值改变背景颜色
-        if not isinstance(rate, int):
-            self.bg_color = QColor(0, 0, 0)
-        elif rate < 40:
-            self.bg_color = QColor(0, 0, mc)
-        elif rate < 55:
-            rate_qz = (rate - 40)/15
-            grean = int(mc * rate_qz)
-            self.bg_color = QColor(0, grean, mc)
-        elif rate < 70:
-            rate_qz = 1- (rate - 55)/15
-            blue = int(mc * rate_qz)
-            self.bg_color = QColor(0, mc, blue)
-        elif rate < 90:
-            self.bg_color = QColor(0, mc, 0)
-        elif rate < 105:
-            rate_qz = (rate - 90)/15
-            red = int(mc * rate_qz)
-            self.bg_color = QColor(red, mc, 0)  # 红色
-        elif rate < 120:
-            rate_qz = 1 - (rate - 105)/15
-            grean = int(mc * rate_qz)
-            self.bg_color = QColor(mc, grean, 0)
-        elif rate >= 120: 
-            self.bg_color = QColor(255, 0, 0)
-
-        self.update_style()
-
-    def update_style(self):
-        """更新样式表"""
-        style = f"""
-            QLabel {{
-                font-size: {self.font_size}px;
-                font-weight: bold;
-                color: rgba({self.text_color.red()}, {self.text_color.green()}, {self.text_color.blue()}, 255);
-                background-color: rgba({self.bg_color.red()}, {self.bg_color.green()}, {self.bg_color.blue()}, {self.bg_opacity});
-                border-radius: 10px;
-                padding: {self.padding}px;
-            }}
-        """
-        self.heart_rate_label.setStyleSheet(style)
-        self.adjustSize()  # 调整窗口大小以适应新样式
-
-    def set_text_color(self, color: QColor):
-        """设置文字颜色"""
-        self.text_color = color
-        self._up_set('text_color', color.rgb())
-        self.update_style()
-
-    def set_bg_opacity(self, opacity: int, update_setting: bool = True):
-        """设置背景透明度"""
-        self.bg_opacity = opacity
-        if update_setting:
-            self._up_set('bg_opacity', opacity)
-        self.update_style()
-
-    def set_font_size(self, size):
-        """设置字体大小"""
-        self.font_size = size
-        self._up_set('font-size', size)
-        self.update_style()
-
-    def set_padding(self, padding):
-        """设置内边距"""
-        self.padding = padding
-        self._up_set('padding', padding)
-        self.update_style()
-
-    def _get_set(self, option: str, default, type_ = None):
-        if type_ == bool:
-            data = config.getboolean('FloatingWindow', option, fallback=default)
-        else :
-            data = config.get('FloatingWindow', option, fallback=default)
-        logger.debug(f'-浮窗 获取配置项 {option} 的值: {data}')
-        if type_ is None:
-            return data
-        else:return type_(data)
-
-    def _up_set(self, option: str, value):
-        config.set('FloatingWindow', option, str(value))
-        logger.debug(f'-浮窗 更新配置项 {option} 的值: {value}')
-        save_settings()
-
-    def _up_xy(self):
-        update_settings(FloatingWindow={'x': self.x(), 'y': self.y()})
-        
 
 class HeartRateMonitorGUI(QMainWindow):
     def __init__(self, vesion):
@@ -332,6 +168,7 @@ class HeartRateMonitorGUI(QMainWindow):
         self.float_window_check.stateChanged.connect(self.toggle_floating_window)
 
         self.click_through_check = QCheckBox("鼠标穿透")
+        self.click_through_check.setChecked(self.floating_window._get_set('look', False, bool))
         self.click_through_check.stateChanged.connect(self.toggle_click_through)
 
         display_layout.addWidget(self.float_window_check)
@@ -519,11 +356,13 @@ class HeartRateMonitorGUI(QMainWindow):
                 self.floating_window.windowFlags() | 
                 Qt.WindowTransparentForInput
             )
+            self.floating_window._up_set('look', True)
         else:
             self.floating_window.setWindowFlags(
                 self.floating_window.windowFlags() & 
                 ~Qt.WindowTransparentForInput
             )
+            self.floating_window._up_set('look', False) 
         self.floating_window.show()
 
     def set_text_color(self):
@@ -542,6 +381,7 @@ class HeartRateMonitorGUI(QMainWindow):
         if "{rate}" in base:
             self.floating_window.text_base = base
             self.floating_window.update_heart_rate()
+            self.floating_window._up_set("text_base", base)
         else:
             self.text_edit.setText(self.floating_window.text_base)
             copybut = QMessageBox.Yes
@@ -638,7 +478,7 @@ class HeartRateMonitorGUI(QMainWindow):
 
         except Exception as e:
             self.device_list_status.setText(f"扫描错误: {str(e)}")
-            logger.error(f"扫描BLE设备错误: {e}")
+            logger.error(f"扫描BLE设备错误: {e}", exc_info=True)
 
     def auto_scan(self, state):
         """启停自动扫描设备"""
@@ -737,12 +577,21 @@ class HeartRateMonitorGUI(QMainWindow):
                 event.accept()
 
     def updata_window_show(self, index):
-        reply = QMessageBox.question(self, '提示', '检测到有新版本可以更新', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
-        if reply == QMessageBox.Yes:
-            # 用浏览器访问更新地址
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle('提示')
+        msg_box.setText('检测到有新版本可以更新')
+        msg_box.addButton("前往查看", QMessageBox.YesRole)
+        btn_no = msg_box.addButton("取消", QMessageBox.NoRole)
+        msg_box.setDefaultButton(btn_no)
+        reply = msg_box.exec_()
+        if reply == 0:
             webbrowser.open(index)
 
     def verylarge_error(self, error_message: str):
         QMessageBox.critical(self, "严重错误", error_message, QMessageBox.Ok)
         self.close_application()
+
+    def _up_set(self, option: str, value):
+        config.set('GUI', option, str(value))
+        logger.debug(f'-GUI 更新配置项 {option} 的值: {value}')
+        save_settings()

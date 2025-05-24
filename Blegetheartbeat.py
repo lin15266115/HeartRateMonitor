@@ -7,7 +7,7 @@ def import_models():
     global BleakScanner, BleakClient
     from bleak import BleakScanner, BleakClient
 
-install_models(import_models, "bleak")
+pip_install_models(import_models, "bleak")
 
 # 心率服务UUID
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"

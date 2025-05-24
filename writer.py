@@ -3,10 +3,10 @@ import sys
 import logging
 from typing import Any
 
-__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'install_models']
+__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models']
 
 # 创建日志记录器
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('__main__')
 logger.setLevel(logging.DEBUG)
 
 if not os.path.exists('log'):
@@ -61,7 +61,7 @@ def save_settings():
     with open(config_file, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 
-def install_models(import_models_func: callable, pip_modelname: str):
+def pip_install_models(import_models_func: callable, pip_modelname: str):
     try:
         import_models_func()
     except ModuleNotFoundError as e:

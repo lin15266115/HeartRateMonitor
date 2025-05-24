@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import asyncio
 
 is_frozen = getattr(sys, 'frozen', False)
 
@@ -15,12 +16,14 @@ if os.path.exists("version.json"):
             ver = vp['version']
         
 
-from writer import logger
+from writer import logger, init_config
 
 logger.info(f'运行程序 -{__version__}[{ver}] -{__file__}')
 
+init_config()
 
-from UI import *
+
+from UI import HeartRateMonitorGUI, QApplication, QEventLoop
 
 import urllib.request
 
@@ -29,7 +32,7 @@ def checkupdata() -> tuple[bool, str]:
     logger.info("检查更新中...")
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
-        
+
         with urllib.request.urlopen(url) as response: 
             # 读取json格式
             data = json.loads(response.read().decode('utf-8'))

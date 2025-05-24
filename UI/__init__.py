@@ -6,6 +6,7 @@ import webbrowser
 
 from .fhrw import *
 from  writer import *
+from . import heartratepng
 from Blegetheartbeat import BLEHeartRateMonitor
 
 
@@ -265,13 +266,13 @@ class HeartRateMonitorGUI(QMainWindow):
     def setup_tray_icon(self):
         """设置系统托盘图标"""
         if QSystemTrayIcon.isSystemTrayAvailable():
+            pixmap = QPixmap()
+            pixmap.loadFromData(heartratepng.image)  # 自动检测格式（PNG/ICO等）
+
+            # 2. 转换为 QIcon
+            icon = QIcon(pixmap)
             self.tray_icon = QSystemTrayIcon(self)
-            if os.path.exists("heart-rate.png"):
-                self.tray_icon.setIcon(QIcon("heart-rate.png"))
-            else:
-                # 默认图标
-                self.tray_icon.setIcon(QIcon())
-                logger.warning("未找到图标文件，将使用默认图标。")
+            self.tray_icon.setIcon(icon)
 
             tray_menu = QMenu()
 

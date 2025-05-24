@@ -5,18 +5,28 @@ import asyncio
 
 is_frozen = getattr(sys, 'frozen', False)
 
-if os.path.exists("version.json"):
-    with open("version.json", "r") as f:
-        vp  = json.load(f)
-        if is_frozen:
-            __version__ = vp['frozen-name']
-            ver = vp['frozen-version']
-        else:
-            __version__ = vp['name']
-            ver = vp['version']
-        
+frozenvname = "1.2.1-alpha"
+frozenver = 1.002001
 
 from writer import logger, init_config
+
+if is_frozen:
+    __version__ = frozenvname
+    ver = frozenver
+else:
+    __version__ = '1.2.1'
+    ver = 1.00200102
+    # 检查或创建文件
+    os.makedirs("log", exist_ok=True)
+    with open("version.json", "w", encoding="utf-8") as f:
+        data = {
+             "name": __version__
+            ,"version": ver
+            ,"frozen-name":  frozenvname
+            ,"frozen-version": frozenver
+            ,"index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.2.0-alpha"
+        }
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 logger.info(f'运行程序 -{__version__}[{ver}] -{__file__}')
 

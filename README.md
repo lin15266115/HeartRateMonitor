@@ -1,5 +1,8 @@
+#### 关于正式应用名称的命名意见征求:
+- 作者希望为这个应用取一个好听的名称, 希望各位看到可以提出宝贵意见, 谢谢!
+
 ### 效果展示：
-[![视频](https://i1.hdslb.com/bfs/archive/3b60eb45c7b24938e62cdd3f3bc28e56ff5d8e2c.jpg@308w_174h)](https://www.bilibili.com/video/BV1VsEbzeE1N)
+[![视频](https://i1.hdslb.com/bfs/archive/3b60eb45c7b24938e62cdd3f3bc28e56ff5d8e2c.jpg@308w_174h)bilibili视频](https://www.bilibili.com/video/BV1VsEbzeE1N)
 
 ### 项目仓库：
 [github](https://github.com/lin15266115/HeartRateMonitor)

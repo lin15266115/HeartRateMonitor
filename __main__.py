@@ -2,10 +2,11 @@ import os
 import sys
 import json
 import asyncio
+import subprocess
 
 is_frozen = getattr(sys, 'frozen', False)
 
-frozenvname = "1.2.1-alpha"
+frozenvname = "v1.2.1-alpha"
 frozenver = 1.002001
 
 from writer import logger, init_config
@@ -14,8 +15,8 @@ if is_frozen:
     __version__ = frozenvname
     ver = frozenver
 else:
-    __version__ = '1.2.1'
-    ver = 1.00200102
+    __version__ = '1.2.2'
+    ver = 1.00200201
     # 检查或创建文件
     os.makedirs("log", exist_ok=True)
     with open("version.json", "w", encoding="utf-8") as f:
@@ -24,7 +25,7 @@ else:
             ,"version": ver
             ,"frozen-name":  frozenvname
             ,"frozen-version": frozenver
-            ,"index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.2.0-alpha"
+            ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
         }
         json.dump(data, f, ensure_ascii=False, indent=4)
 

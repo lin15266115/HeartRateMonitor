@@ -11,13 +11,13 @@ from Blegetheartbeat import BLEHeartRateMonitor
 
 
 def import_PyQt5():
-    from . import importm
-    for key, mode in importm.import_PyQt5().items():
+    from . import importpyqt
+    for key, mode in importpyqt.import_PyQt5().items():
         globals()[key] = mode
 
 # 触发IDE python类型提示
 try:
-    if nothing:from .importm import * # type: ignore
+    if nothing:from .importpyqt import * # type: ignore
 except:pass
 
 def import_qasync():
@@ -50,8 +50,14 @@ class HeartRateMonitorGUI(QMainWindow):
 
     def setup_ui(self):
         """设置GUI界面"""
+        pixmap = QPixmap()
+        pixmap.loadFromData(heartratepng.image)
+        self.app_icon = QIcon(pixmap)
+
         self.setWindowTitle(f"心率监测设置 -[{self._vesion_}]")
         self.setGeometry(100, 100, 800, 600)
+        self.setWindowIcon(self.app_icon)
+        self.setFixedSize(self.width(), self.height())
 
         # 主布局
         main_widget = QWidget()
@@ -234,18 +240,25 @@ class HeartRateMonitorGUI(QMainWindow):
         opacity_layout.addWidget(self.opacity_slider)
         float_layout.addLayout(opacity_layout)
 
+        float_group.setLayout(float_layout)
+        right_layout.addWidget(float_group)
+
+        # 软件设置
+        settings_group = QGroupBox("软件设置")
+        settings_layout = QVBoxLayout()
+        settings_group.setLayout(settings_layout)
+
         # 托盘图标设置
         tray_layout = QHBoxLayout()
         self.tray_check = QCheckBox("启用托盘图标")
-        self.tray_check.setChecked(True)
+        self.tray_check.setChecked(self._get_set('tray_icon', True, bool))
         self.tray_check.stateChanged.connect(self.toggle_tray_icon)
 
         tray_layout.addWidget(self.tray_check)
         tray_layout.addStretch()
-        float_layout.addLayout(tray_layout)
+        settings_layout.addLayout(tray_layout)
 
-        float_group.setLayout(float_layout)
-        right_layout.addWidget(float_group)
+        right_layout.addWidget(settings_group)
 
         # 状态栏
         self.status_label = QLabel("准备就绪")
@@ -266,13 +279,9 @@ class HeartRateMonitorGUI(QMainWindow):
     def setup_tray_icon(self):
         """设置系统托盘图标"""
         if QSystemTrayIcon.isSystemTrayAvailable():
-            pixmap = QPixmap()
-            pixmap.loadFromData(heartratepng.image)  # 自动检测格式（PNG/ICO等）
 
-            # 2. 转换为 QIcon
-            icon = QIcon(pixmap)
             self.tray_icon = QSystemTrayIcon(self)
-            self.tray_icon.setIcon(icon)
+            self.tray_icon.setIcon(self.app_icon)
 
             tray_menu = QMenu()
 
@@ -289,7 +298,8 @@ class HeartRateMonitorGUI(QMainWindow):
             quit_action.triggered.connect(self.quit_application)
 
             self.tray_icon.setContextMenu(tray_menu)
-            self.tray_icon.show()
+            if self._get_set('tray_icon', True, bool):
+                self.tray_icon.show()
             self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
     def show_settings(self):
@@ -338,8 +348,10 @@ class HeartRateMonitorGUI(QMainWindow):
         if self.tray_icon:
             if state == Qt.Checked:
                 self.tray_icon.show()
+                self._up_set('tray_icon', True)
             else:
                 self.tray_icon.hide()
+                self._up_set('tray_icon', False)
 
     def toggle_floating_window(self, state):
         """切换浮动窗口显示"""
@@ -593,6 +605,7 @@ class HeartRateMonitorGUI(QMainWindow):
         self.close_application()
 
     def _up_set(self, option: str, value):
-        config.set('GUI', option, str(value))
-        logger.debug(f'-GUI 更新配置项 {option} 的值: {value}')
-        save_settings()
+        ups('GUI', option, value, debugn="GUI")
+
+    def _get_set(self, option: str, default, type_ = None):
+        return gs('GUI', option, default, type_ , debugn="GUI")

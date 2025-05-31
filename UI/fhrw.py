@@ -1,4 +1,4 @@
-from .importm import QWidget, QColor, Qt, QVBoxLayout, QLabel, QPoint
+from .importpyqt import QWidget, QColor, Qt, QVBoxLayout, QLabel, QPoint
 from writer import *
 
 class FloatingHeartRateWindow(QWidget):
@@ -141,18 +141,10 @@ class FloatingHeartRateWindow(QWidget):
 
     def _get_set(self, option: str, default, type_ = None):
         if type_ == bool:
-            data = config.getboolean('FloatingWindow', option, fallback=default)
-        else :
-            data = config.get('FloatingWindow', option, fallback=default)
-        logger.debug(f'-浮窗 获取配置项 {option} 的值: {data}')
-        if type_ is None:
-            return data
-        else:return type_(data)
+            return gs('FloatingWindow', option, default, type_, "浮窗")
 
     def _up_set(self, option: str, value):
-        config.set('FloatingWindow', option, str(value))
-        logger.debug(f'-浮窗 更新配置项 {option} 的值: {value}')
-        save_settings()
+        ups('FloatingWindow', option, value, "浮窗")
 
     def _up_xy(self):
         update_settings(FloatingWindow={'x': self.x(), 'y': self.y()})

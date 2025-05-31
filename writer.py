@@ -3,7 +3,7 @@ import sys
 import logging
 from typing import Any
 
-__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models']
+__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups']
 
 # 创建日志记录器
 logger = logging.getLogger('__main__')
@@ -16,7 +16,6 @@ if os.path.exists('log/loger1.log'):
         os.remove('log/loger2.log')
     os.rename('log/loger1.log', 'log/loger2.log')
 
-str
 handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
 handler.setLevel(logging.DEBUG)
 
@@ -89,3 +88,19 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
                 sys.exit(1)
     except Exception as e:
         logger.error(f"无法导入模块: {e}")
+
+
+def gs(section, option, default, type_ = None, debugn = ""):
+    if type_ == bool:
+        data = config.getboolean(section, option, fallback=default)
+    else :
+        data = config.get(section, option, fallback=default)
+    logger.debug(f' [{debugn}] -获取配置项 {option} 的值: {data}')
+    if type_ is None:
+        return data
+    else:return type_(data)
+
+def ups(section, option: str, value, debugn = ""):
+    config.set(section, option, str(value))
+    logger.debug(f'[{debugn}] 更新配置项 {option} 的值: {value}')
+    save_settings()

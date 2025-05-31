@@ -46,7 +46,7 @@ class HeartRateMonitorGUI(QMainWindow):
             self.setup_tray_icon()
             QTimer.singleShot(500, lambda: self.scan_devices())
         except Exception as e:
-            logger.error(f"GUI 初始化错误: {e}")
+            logger.error(f"GUI 初始化错误: {e}", exc_info=True)
 
     def setup_ui(self):
         """设置GUI界面"""

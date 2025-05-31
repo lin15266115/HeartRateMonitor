@@ -20,7 +20,7 @@ class FloatingHeartRateWindow(QWidget):
                 self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
             logger.info("浮窗初始化完成")
         except Exception as e:
-            logger.error("浮窗初始化失败: {}".format(e))
+            logger.error("浮窗初始化失败: {}".format(e), exc_info=True)
 
     def setup_ui(self):
         self.setWindowTitle("实时心率")
@@ -140,8 +140,7 @@ class FloatingHeartRateWindow(QWidget):
         self.update_style()
 
     def _get_set(self, option: str, default, type_ = None):
-        if type_ == bool:
-            return gs('FloatingWindow', option, default, type_, "浮窗")
+        return gs('FloatingWindow', option, default, type_, "浮窗")
 
     def _up_set(self, option: str, value):
         ups('FloatingWindow', option, value, "浮窗")

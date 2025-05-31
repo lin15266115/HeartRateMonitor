@@ -16,7 +16,7 @@ if is_frozen:
     ver = frozenver
 else:
     __version__ = '1.2.2-build'
-    ver = 1.00200202
+    ver = 1.00200203
     # 检查或创建文件
     os.makedirs("log", exist_ok=True)
     with open("version.json", "w", encoding="utf-8") as f:

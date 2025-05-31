@@ -35,11 +35,19 @@ def init_config():
     try:
         if not os.path.exists(config_file):
             logger.warning("未找到配置文件 config.ini, 尝试创建默认配置文件")
-            config.add_section('FloatingWindow')
             save_settings()
         config.read(config_file, encoding='utf-8')
+        check_sections()
     except Exception as e:
         logger.error(f"无法加载配置文件: {e}")
+
+def check_sections():
+    sectionlist = ['GUI', 'FloatingWindow']
+    for section in sectionlist:
+        if not config.has_section(section):
+            config.add_section(section)
+            s_ = True
+    if s_: save_settings()
 
 def update_settings(**kwargs: SETTINGTYPE):
     global config

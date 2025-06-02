@@ -5,7 +5,7 @@ import datetime
 import webbrowser
 
 from .fhrw import *
-from  writer import *
+from  config_manager import *
 from . import heartratepng
 from Blegetheartbeat import BLEHeartRateMonitor
 
@@ -27,26 +27,23 @@ def import_qasync():
 pip_install_models(import_PyQt5, "pyqt5")
 pip_install_models(import_qasync, "qasync")
 
-
 class HeartRateMonitorGUI(QMainWindow):
+    @try_except("GUI 初始化错误")
     def __init__(self, vesion):
         logger.info("初始化GUI")
-        try:
-            super().__init__()
-            self.quit_setstadus = True
-            self.ble_monitor = BLEHeartRateMonitor()
-            self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
-            self.floating_window = FloatingHeartRateWindow()
-            self.tray_icon = None
-            self.linking = False
-            self.noscanerror_win = False
-            self.save_opacity = False
-            self._vesion_ = vesion
-            self.setup_ui()
-            self.setup_tray_icon()
-            QTimer.singleShot(500, lambda: self.scan_devices())
-        except Exception as e:
-            logger.error(f"GUI 初始化错误: {e}", exc_info=True)
+        super().__init__()
+        self.quit_setstadus = True
+        self.ble_monitor = BLEHeartRateMonitor()
+        self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
+        self.floating_window = FloatingHeartRateWindow()
+        self.tray_icon = None
+        self.linking = False
+        self.noscanerror_win = False
+        self.save_opacity = False
+        self._vesion_ = vesion
+        self.setup_ui()
+        self.setup_tray_icon()
+        QTimer.singleShot(500, lambda: self.scan_devices())
 
     def setup_ui(self):
         """设置GUI界面"""
@@ -243,6 +240,15 @@ class HeartRateMonitorGUI(QMainWindow):
         float_group.setLayout(float_layout)
         right_layout.addWidget(float_group)
 
+        # 注册为常规窗口
+        register_layout = QHBoxLayout()
+        self.register_window_check = QCheckBox("注册为常规窗口(OBS捕获)")
+        register_window_check_state = self.floating_window._get_set('register_as_window', False, bool)
+        self.register_window_check.setChecked(register_window_check_state)
+        self.register_window_check.stateChanged.connect(self.toggle_register_as_window)
+        register_layout.addWidget(self.register_window_check)
+        float_layout.addLayout(register_layout)
+
         # 软件设置
         settings_group = QGroupBox("软件设置")
         settings_layout = QVBoxLayout()
@@ -377,6 +383,10 @@ class HeartRateMonitorGUI(QMainWindow):
             )
             self.floating_window._up_set('look', False) 
         self.floating_window.show()
+
+    def toggle_register_as_window(self, state):
+        """切换是否注册为常规窗口"""
+        self.floating_window.set_register_as_window(state == Qt.Checked)
 
     def set_text_color(self):
         """设置文字颜色"""

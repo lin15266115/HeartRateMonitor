@@ -3,7 +3,7 @@ import sys
 import logging
 from typing import Any
 
-__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups']
+__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'error_handler', 'try_except']
 
 # 创建日志记录器
 logger = logging.getLogger('__main__')
@@ -23,6 +23,32 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+def error_handler(func):
+    """全局异常处理函数"""
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        logger.error(
+            "严重错误: \n",
+            exc_info=(exc_type, exc_value, exc_traceback)
+        )
+        func(exc_type, exc_value)
+
+    return  handle_exception
+
+def try_except(errlogtext = ""):
+    """用于初始化错误处理的装饰器"""
+    def try_(func):
+        def main(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"{errlogtext}: {e}", exc_info=True)
+        return main
+    return try_
+
 from configparser import ConfigParser
 
 SETTINGTYPE = dict[str, Any]
@@ -39,10 +65,11 @@ def init_config():
         config.read(config_file, encoding='utf-8')
         check_sections()
     except Exception as e:
-        logger.error(f"无法加载配置文件: {e}")
+        logger.error(f"无法加载配置文件: {e}", exc_info=True)
 
 def check_sections():
     sectionlist = ['GUI', 'FloatingWindow']
+    s_ = False
     for section in sectionlist:
         if not config.has_section(section):
             config.add_section(section)
@@ -75,13 +102,12 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
         logger.warning(f"缺少依赖包 {e.name}")
         # 检查是否是编译版本
         if getattr(sys, 'frozen', False):
-            logger.error("编译时错误: 请确保编译时已安装所有依赖包")
+            logger.error("编译错误: 请确保编译时已安装所有依赖包")
             sys.exit(1)
         else:
             # 尝试下载依赖包
-            logger.info("正在尝试下载依赖包")
-            # 获取python.exe路径
             python_exe = sys.executable
+            logger.info(f"正在尝试下载依赖包到{python_exe}")
             try:
                 try:
                     os.system(f"{python_exe} -m pip install {pip_modelname}")

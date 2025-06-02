@@ -1,34 +1,29 @@
 from .importpyqt import QWidget, QColor, Qt, QVBoxLayout, QLabel, QPoint
-from writer import *
+from config_manager import *
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
+    @try_except("浮窗初始化失败")
     def __init__(self, parent=None):
         logger.info("初始化浮动心率显示窗口")
-        try:
-            super().__init__(parent)
-            self.text_color = QColor(self._get_set("text_color", 4292502628, int))
-            self.text_base = self._get_set('text_base', "心率: {rate}", str)
-            self.bg_color = QColor(0, 0, 0)
-            self.bg_opacity = self._get_set('bg_opacity', 50, int)
-            self.font_size = self._get_set('font_size', 30, int)
-            self.padding = self._get_set('padding', 10, int)
-            self.setup_ui()
-            x = self._get_set('x', "default")
-            y = self._get_set('y', "default")
-            if not (x == "default" or y == "default"):
-                self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
-            logger.info("浮窗初始化完成")
-        except Exception as e:
-            logger.error("浮窗初始化失败: {}".format(e), exc_info=True)
+        super().__init__(parent)
+        self.text_color = QColor(self._get_set("text_color", 4292502628, int))
+        self.text_base = self._get_set('text_base', "心率: {rate}", str)
+        self.bg_color = QColor(0, 0, 0)
+        self.bg_opacity = self._get_set('bg_opacity', 50, int)
+        self.font_size = self._get_set('font_size', 30, int)
+        self.padding = self._get_set('padding', 10, int)
+        self.register_as_window = self._get_set('register_as_window', False, bool)  # 新增设置
+        self.setup_ui()
+        x = self._get_set('x', "default")
+        y = self._get_set('y', "default")
+        if not (x == "default" or y == "default"):
+            self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
+        logger.info("浮窗初始化完成")
 
     def setup_ui(self):
         self.setWindowTitle("实时心率")
-        self.setWindowFlags(
-            Qt.WindowStaysOnTopHint | 
-            Qt.FramelessWindowHint | 
-            Qt.Tool
-        )
+        self.update_window_flags()
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         layout = QVBoxLayout()
@@ -43,6 +38,29 @@ class FloatingHeartRateWindow(QWidget):
         # 窗口拖动功能
         self.old_pos = self.pos()
         self.dragging = False
+
+    def update_window_flags(self):
+        """更新窗口标志"""
+        if self.register_as_window:
+            # 注册为常规窗口，OBS可以捕获
+            self.setWindowFlags(
+                Qt.WindowStaysOnTopHint |
+                Qt.FramelessWindowHint
+            )
+        else:
+            # 默认的浮动窗口模式
+            self.setWindowFlags(
+                Qt.WindowStaysOnTopHint | 
+                Qt.FramelessWindowHint | 
+                Qt.Tool
+            )
+
+    def set_register_as_window(self, enabled):
+        """设置是否注册为常规窗口"""
+        self.register_as_window = enabled
+        self._up_set('register_as_window', enabled)
+        self.update_window_flags()
+        self.show()  # 重新显示以应用新标志
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

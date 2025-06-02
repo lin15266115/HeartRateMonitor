@@ -1,5 +1,5 @@
 from typing import List, Tuple, Optional, Dict, Callable
-from writer import *
+from config_manager import *
 import datetime
 
 def import_models():

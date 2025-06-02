@@ -6,17 +6,17 @@ import subprocess
 
 is_frozen = getattr(sys, 'frozen', False)
 
-frozenvname = "v1.2.1-alpha"
-frozenver = 1.002001
+frozenvname = "v1.2.2-alpha"
+frozenver = 1.002002
 
-from writer import logger, init_config
+from config_manager import logger, init_config, error_handler
 
 if is_frozen:
     __version__ = frozenvname
     ver = frozenver
 else:
     __version__ = '1.2.2-build'
-    ver = 1.00200203
+    ver = 1.00200204
     # 检查或创建文件
     os.makedirs("log", exist_ok=True)
     with open("version.json", "w", encoding="utf-8") as f:
@@ -32,7 +32,6 @@ else:
 logger.info(f'运行程序 -{__version__}[{ver}] -{__file__}')
 
 init_config()
-
 
 from UI import HeartRateMonitorGUI, QApplication, QEventLoop
 
@@ -76,22 +75,12 @@ if __name__ == "__main__":
         window = HeartRateMonitorGUI(__version__)
         window.show()
 
-        def handle_exception(exc_type, exc_value, exc_traceback):
-            """全局异常处理函数"""
-            if issubclass(exc_type, KeyboardInterrupt):
-                sys.__excepthook__(exc_type, exc_value, exc_traceback)
-                return
-
-            logger.error(
-                "严重错误: \n",
-                exc_info=(exc_type, exc_value, exc_traceback)
-            )
-            # 报错弹窗
+        @error_handler
+        def errwin(exc_type, exc_value):
             window.verylarge_error(f"{exc_type.__name__}: {exc_value}")
 
         # 设置全局异常钩子
-        sys.excepthook = handle_exception
-
+        sys.excepthook = errwin
         with loop:
             screens = app.screens()
             updata, index = checkupdata()

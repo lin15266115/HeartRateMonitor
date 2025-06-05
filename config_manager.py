@@ -3,7 +3,7 @@ import sys
 import logging
 from typing import Any
 
-__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'error_handler', 'try_except']
+__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'try_except']
 
 # 创建日志记录器
 logger = logging.getLogger('__main__')
@@ -23,28 +23,35 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-def error_handler(func):
-    """全局异常处理函数"""
-    def handle_exception(exc_type, exc_value, exc_traceback):
-        if issubclass(exc_type, KeyboardInterrupt):
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-            return
+errorfuncs = []
 
-        logger.error(
-            "严重错误: \n",
-            exc_info=(exc_type, exc_value, exc_traceback)
-        )
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logger.error(
+        "严重错误: \n",
+        exc_info=(exc_type, exc_value, exc_traceback)
+    )
+    for func in errorfuncs:
         func(exc_type, exc_value)
 
-    return  handle_exception
+def add_errorfunc(func):
+    """用于添加错误处理函数
+    函数必须接收参数: exc_type, exc_value
+    """
+    global errorfuncs
+    errorfuncs.append(func)
 
-def try_except(errlogtext = ""):
+
+def try_except(errlogtext = "", func_ = None):
     """用于初始化错误处理的装饰器"""
     def try_(func):
         def main(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
+                if func_ is not None: func_(e=e)
                 logger.error(f"{errlogtext}: {e}", exc_info=True)
         return main
     return try_

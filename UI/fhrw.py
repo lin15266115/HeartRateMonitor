@@ -44,15 +44,16 @@ class FloatingHeartRateWindow(QWidget):
         if self.register_as_window:
             # 注册为常规窗口，OBS可以捕获
             self.setWindowFlags(
-                Qt.WindowStaysOnTopHint |
-                Qt.FramelessWindowHint
+                 Qt.WindowStaysOnTopHint 
+                |Qt.FramelessWindowHint 
+                |Qt.WindowTitleHint
             )
         else:
             # 默认的浮动窗口模式
             self.setWindowFlags(
-                Qt.WindowStaysOnTopHint | 
-                Qt.FramelessWindowHint | 
-                Qt.Tool
+                 Qt.WindowStaysOnTopHint 
+                |Qt.FramelessWindowHint 
+                |Qt.Tool
             )
 
     def set_register_as_window(self, enabled):

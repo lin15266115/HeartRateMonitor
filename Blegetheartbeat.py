@@ -38,7 +38,7 @@ class BLEHeartRateMonitor:
         # 过滤掉名称为None的设备
         return [d for d in self.devices if d.name is not None] if self.filter_empty else self.devices
 
-    async def connect_device(self, device_address: str) -> bool:
+    async def connect_device(self, device_address: str) -> tuple[bool, str]:
         """
         连接设备
 
@@ -50,13 +50,17 @@ class BLEHeartRateMonitor:
         """
         self.client = BleakClient(device_address)
         await self.client.connect()
-
-        # 启用心率通知
-        await self.client.start_notify(
-            HEART_RATE_MEASUREMENT_UUID,
-            self._notification_handler
-        )
-        return True
+        services = await self.client.get_services()
+        if HEART_RATE_SERVICE_UUID in [ser.uuid for ser in services]:
+            # 启用心率通知
+            await self.client.start_notify(
+                HEART_RATE_MEASUREMENT_UUID,
+                self._notification_handler
+            )
+            return True, "已连接 {device_address}"
+        else:
+            await self.disconnect_device()
+            return False, "{device_address} 不是支持心率服务的设备"
 
     async def disconnect_device(self):
         """断开设备连接"""

@@ -14,7 +14,7 @@ def import_qasync():
 pip_install_models(import_qasync, "qasync")
 
 class DeviceConnectionUI(QWidget):
-    heart_rate_updated = pyqtSignal(str, int)
+    heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)
 
     def __init__(self, status_label):
@@ -22,6 +22,8 @@ class DeviceConnectionUI(QWidget):
         self.ble_monitor = BLEHeartRateMonitor()
         self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
         self.status_label = status_label
+        self.linking = False
+        self.quit_setstadus = True
         self.setup_ui()
 
     def setup_ui(self):
@@ -114,8 +116,14 @@ class DeviceConnectionUI(QWidget):
         layout.addWidget(control_group)
         layout.addWidget(data_group)
         self.setLayout(layout)
+
+        # 定时器用于更新链接信息UI
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.update_ui)
+        self.update_timer.start(1000)
     
     def on_heart_rate_update(self, timestamp, heart_rate):
+        self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
         self.heart_rate_updated.emit(heart_rate)
 
     
@@ -178,29 +186,30 @@ class DeviceConnectionUI(QWidget):
 
         device_info = selected_item.text()
         findL = device_info.find("(")
-        device_address = device_info[ findL+1 : device_info.find(")") ]
-        device_name = device_info[:findL]
+        device_address = device_info[findL+1 : device_info.find(")")]
+        device_name = device_info[:findL-1]
 
         self.status_label.setText(f"正在连接 {device_name}...")
         logger.info(f"尝试连接 {device_info}")
 
         try:
             self.linking = True
-            success = await self.ble_monitor.connect_device(device_address)
+            success, rtext = await self.ble_monitor.connect_device(device_address)
+            self.status_label.setText(rtext.format(device_address=device_name))
+            logger.info(rtext.format(device_address=device_info))
             if success:
-                self.status_label.setText(f"已连接 {device_name}")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
 
                 # 设置自动断开定时器（如果设置了时间）
                 duration = self.duration_spin.value()
-                logger.info(f"已连接到 {device_name}, 设置自动断开时间 {duration} 秒(0表示不自动断开)")
+                logger.info(f"自动断开时间 {duration} 秒(0表示不自动断开)")
                 if duration > 0:
                     QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
 
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
-            logger.error(f"连接设备时出错: {e}")
+            logger.error(f"连接设备时出错: {e}", exc_info=True)
         self.linking = False
     
     def disconnect_error(self, e):
@@ -248,3 +257,16 @@ class DeviceConnectionUI(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"保存失败: {str(e)}")
                 logger.error(f"保存数据时出错: {str(e)}")
+
+    def update_ui(self):
+        """更新UI状态"""
+        if (self.ble_monitor.client and self.ble_monitor.client.is_connected) or self.linking:
+            self.quit_setstadus = False
+            self.connect_button.setEnabled(False)
+            self.disconnect_button.setEnabled(True)
+        else:
+            if self.quit_setstadus == False:
+                self.status_label.setText("链接被断开")
+                self.quit_setstadus = True
+            self.connect_button.setEnabled(True)
+            self.disconnect_button.setEnabled(False)

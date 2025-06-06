@@ -1,11 +1,3 @@
-from .fhrw import *
-from .DevCtrl import *
-from  config_manager import *
-from . import heartratepng
-
-import webbrowser
-
-
 def import_PyQt5():
     from . import importpyqt
     for key, mode in importpyqt.import_PyQt5().items():
@@ -16,10 +8,18 @@ try:
     if nothing:from .importpyqt import * # type: ignore
 except:pass
 
+import webbrowser
+
+from .fhrw import *
+from .DevCtrl import *
+from .heartratepng import *
+from config_manager import pip_install_models, try_except, ups, gs
+
 pip_install_models(import_PyQt5, "pyqt5")
 
 # 主窗口类
 class MainWindow(QMainWindow):
+    @try_except("主窗口初始化失败")
     def __init__(self, version):
         super().__init__()
         self.version = version
@@ -125,11 +125,12 @@ class FloatingWindowSettingUI(QWidget):
     def __init__(self):
         super().__init__()
         self.floating_window = FloatingHeartRateWindow()
+        self.save_ = {"bg_opacity": False, "bg_brightness": False}
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout()
-        
+
         float_group = QGroupBox("浮动窗口设置")
         float_layout = QVBoxLayout()
 
@@ -198,15 +199,21 @@ class FloatingWindowSettingUI(QWidget):
 
         # 背景透明度设置
         opacity_layout = QHBoxLayout()
-        self.opacity_slider = QSlider(Qt.Horizontal)
-        self.opacity_slider.setRange(0, 255)
         bgop = self.floating_window.bg_opacity
-        self.opacity_slider.setValue(bgop)
-        self.opacity_slider.valueChanged.connect(self.set_bg_opacity)
+        self.opacity_slider = Slider_(bgop, self.set_bg_opacity)
 
         opacity_layout.addWidget(QLabel("背景透明度:"))
         opacity_layout.addWidget(self.opacity_slider)
         float_layout.addLayout(opacity_layout)
+
+        # 背景亮度设置
+        brightness_layout = QHBoxLayout()
+        bg_brightness = self.floating_window.bg_brightness
+        self.brightness_slider = Slider_(bg_brightness, self.set_bg_brightness)
+
+        brightness_layout.addWidget(QLabel("背景亮度:"))
+        brightness_layout.addWidget(self.brightness_slider)
+        float_layout.addLayout(brightness_layout)
 
         # 注册为常规窗口
         register_layout = QHBoxLayout()
@@ -285,21 +292,18 @@ class FloatingWindowSettingUI(QWidget):
         """设置背景内边距"""
         self.floating_window.set_padding(padding)
 
-    def set_bg_opacity(self, value):
+    def set_bg_opacity(self, value=None, ups_=None):
         """设置背景透明度"""
-        self.floating_window.set_bg_opacity(value,self.save_opacity)
-        self.save_opacity = False
+        self.floating_window.set_bg_opacity(value,ups_)
 
-    def mouseReleaseEvent(self, event):
-        """鼠标释放事件"""
-        if event.button() == Qt.LeftButton:
-            self.save_opacity = True # 保存浮窗透明度
+    def set_bg_brightness(self, value=None, ups_=True):
+        """设置背景亮度"""
+        self.floating_window.set_bg_brightness(value,ups_)
 
 # 应用设置UI类
 class AppSettingsUI(QWidget):
     quit_application = pyqtSignal()
     show_settings = pyqtSignal()
-
     def __init__(self):
         super().__init__()
         self.setup_ui()
@@ -307,7 +311,7 @@ class AppSettingsUI(QWidget):
         
     def setup_ui(self):
         pixmap = QPixmap()
-        pixmap.loadFromData(heartratepng.image)
+        pixmap.loadFromData(heart_rate_png)
         self.app_icon = QIcon(pixmap)
 
         layout = QVBoxLayout()
@@ -372,3 +376,21 @@ class AppSettingsUI(QWidget):
 
     def _get_set(self, option: str, default, type_ = None):
         return gs('GUI', option, default, type_ , debugn="GUI")
+    
+
+class Slider_(QSlider):
+    def __init__(self, initial_value, value_changed_callback, Range = (0, 255)):
+        super().__init__(Qt.Horizontal)
+        self.value_changed_callback = value_changed_callback
+
+        self.setRange(*Range)
+        self.setValue(initial_value)
+
+        # 连接信号和槽
+        self.valueChanged.connect(
+            lambda value: self.value_changed_callback(value, ups_=False)
+        )
+
+    def mousePressEvent(self, a0):
+        super().mousePressEvent(a0)
+        self.value_changed_callback(ups_=True)

@@ -3,27 +3,30 @@ import sys
 import logging
 from typing import Any
 
-__all__  = ['logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'try_except']
+__all__  = ['getlogger','logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'try_except']
 
-# 创建日志记录器
-logger = logging.getLogger('__main__')
-logger.setLevel(logging.DEBUG)
+def getlogger():
+    global logger
+    # 创建日志记录器
+    logger = logging.getLogger('__main__')
+    logger.setLevel(logging.DEBUG)
 
-if not os.path.exists('log'):
-    os.mkdir('log')
-if os.path.exists('log/loger1.log'):
-    if os.path.exists('log/loger2.log'):
-        os.remove('log/loger2.log')
-    os.rename('log/loger1.log', 'log/loger2.log')
+    if not os.path.exists('log'):
+        os.mkdir('log')
+    if os.path.exists('log/loger1.log'):
+        if os.path.exists('log/loger2.log'):
+            os.remove('log/loger2.log')
+        os.rename('log/loger1.log', 'log/loger2.log')
 
-handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
-handler.setLevel(logging.DEBUG)
+    handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
+    handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
-errorfuncs = []
+errorfunc = None
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -33,15 +36,15 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         "严重错误: \n",
         exc_info=(exc_type, exc_value, exc_traceback)
     )
-    for func in errorfuncs:
-        func(exc_type, exc_value)
+    if errorfunc:
+        errorfunc(exc_type, exc_value)
 
 def add_errorfunc(func):
     """用于添加错误处理函数
     函数必须接收参数: exc_type, exc_value
     """
-    global errorfuncs
-    errorfuncs.append(func)
+    global errorfunc
+    errorfunc= func
 
 
 def try_except(errlogtext = "", func_ = None):
@@ -83,19 +86,17 @@ def check_sections():
             s_ = True
     if s_: save_settings()
 
+@try_except("修改配置失败")
 def update_settings(**kwargs: SETTINGTYPE):
     global config
-    try:
-        logger.info(f"修改配置: {kwargs}")
-        for section in kwargs.keys():
-            if not config.has_section(section):
-                config.add_section(section)
-            data = kwargs[section]
-            for key in data.keys():
-                config.set(section, key, str(data[key]))
-        save_settings()
-    except Exception as e:
-        logger.error(f"修改配置失败: {e}")
+    logger.info(f"修改配置: {kwargs}")
+    for section in kwargs.keys():
+        if not config.has_section(section):
+            config.add_section(section)
+        data = kwargs[section]
+        for key in data.keys():
+            config.set(section, key, str(data[key]))
+    save_settings()
 
 def save_settings():
     global config
@@ -131,12 +132,14 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
         logger.error(f"无法导入模块: {e}")
 
 
-def gs(section, option, default, type_ = None, debugn = ""):
+def gs(section, option, default, type_:type = None, debugn = ""):
     if type_ == bool:
         data = config.getboolean(section, option, fallback=default)
     else :
         data = config.get(section, option, fallback=default)
     logger.debug(f' [{debugn}] -获取配置项 {option} 的值: {data}')
+    if data is None or data == "None":
+        return default
     if type_ is None:
         return data
     else:return type_(data)

@@ -1,10 +1,11 @@
 from .importpyqt import QWidget, QColor, Qt, QVBoxLayout, QLabel, QPoint
-from config_manager import *
+from config_manager import logger, try_except, ups, gs, update_settings
+__all__ = ["FloatingHeartRateWindow"]
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
     @try_except("浮窗初始化失败")
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, ICON=None):
         logger.info("初始化浮动心率显示窗口")
         super().__init__(parent)
         self.text_color = QColor(self._get_set("text_color", 4292502628, int))
@@ -13,8 +14,11 @@ class FloatingHeartRateWindow(QWidget):
         self.bg_opacity = self._get_set('bg_opacity', 50, int)
         self.font_size = self._get_set('font_size', 30, int)
         self.padding = self._get_set('padding', 10, int)
-        self.register_as_window = self._get_set('register_as_window', False, bool)  # 新增设置
+        self.bg_brightness = self._get_set('bg_brightness', 200, int)
+        self.register_as_window = self._get_set('register_as_window', False, bool)
         self.setup_ui()
+        if ICON:
+            self.setWindowIcon(ICON)
         x = self._get_set('x', "default")
         y = self._get_set('y', "default")
         if not (x == "default" or y == "default"):
@@ -88,7 +92,7 @@ class FloatingHeartRateWindow(QWidget):
         """更新心率显示"""
         self.heart_rate_label.setText(self.text_base.format(rate=rate if rate else '--'))
 
-        mc = 200
+        mc = self.bg_brightness
         
         # 根据心率值改变背景颜色
         if not isinstance(rate, int):
@@ -139,11 +143,18 @@ class FloatingHeartRateWindow(QWidget):
         self._up_set('text_color', color.rgb())
         self.update_style()
 
-    def set_bg_opacity(self, opacity: int, update_setting: bool = True):
+    def set_bg_opacity(self, opacity = None, update_setting = True):
         """设置背景透明度"""
-        self.bg_opacity = opacity
+        self.bg_opacity = opacity or self.bg_opacity
         if update_setting:
             self._up_set('bg_opacity', opacity)
+        self.update_style()
+
+    def set_bg_brightness(self, brightness = None, update_setting = True):
+        """设置背景亮度"""
+        self.bg_brightness = brightness or self.bg_brightness
+        if update_setting:
+            self._up_set('bg_brightness', brightness)
         self.update_style()
 
     def set_font_size(self, size):

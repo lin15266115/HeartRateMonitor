@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QSystemTrayIcon, QMenu, QSlider, QColorDialog, QFontDialog)
 from PyQt5.QtCore import QTimer, Qt, QPoint, QSize, pyqtSignal
 from PyQt5.QtGui import QColor, QIcon, QFont, QPixmap
+from PyQt5.QtWinExtras import QtWin
 
 def import_PyQt5():
     return globals()

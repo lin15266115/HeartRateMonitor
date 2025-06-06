@@ -13,6 +13,8 @@ def import_qasync():
 
 pip_install_models(import_qasync, "qasync")
 
+__all__ = ["DeviceConnectionUI","QEventLoop"]
+
 class DeviceConnectionUI(QWidget):
     heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)

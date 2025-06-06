@@ -2,14 +2,15 @@ import os
 import sys
 import json
 import asyncio
-import subprocess
 
 is_frozen = getattr(sys, 'frozen', False)
 
 frozenvname = "v1.2.2-alpha"
 frozenver = 1.002002
 
-from config_manager import logger, init_config, add_errorfunc, handle_exception
+from config_manager import getlogger, init_config, add_errorfunc, handle_exception
+
+logger = getlogger()
 
 # 设置全局异常钩子
 sys.excepthook = handle_exception
@@ -19,7 +20,7 @@ if is_frozen:
     ver = frozenver
 else:
     __version__ = '1.3.0-build'
-    ver = 1.00300002
+    ver = 1.00300003
     # 检查或创建文件
     os.makedirs("log", exist_ok=True)
     with open("version.json", "w", encoding="utf-8") as f:
@@ -37,7 +38,8 @@ logger.info(f'运行程序 -{__version__}[{ver}] -{__file__}')
 
 init_config()
 
-from UI import MainWindow, QApplication, QEventLoop
+from UI import MainWindow, QApplication, QEventLoop, QtWin
+
 
 import urllib.request
 
@@ -69,27 +71,26 @@ def checkupdata() -> tuple[bool, str]:
     return False, ''
 
 if __name__ == "__main__":
-    try:
-        app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
-        # 设置异步事件循环
-        loop = QEventLoop(app)
-        asyncio.set_event_loop(loop)
+    app_id = 'Zerolinofe.HRLink.Main.1'
+    QtWin.setCurrentProcessExplicitAppUserModelID(app_id)
 
-        window = MainWindow(__version__)
-        window.show()
+    # 设置异步事件循环
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
 
-        def errwin(exc_type, exc_value):
-            window.verylarge_error(f"{exc_type.__name__}: {exc_value}")
+    window = MainWindow(__version__)
+    window.show()
 
-        add_errorfunc(errwin)
+    def errwin(exc_type, exc_value):
+        window.verylarge_error(f"{exc_type.__name__}: {exc_value}")
 
-        with loop:
-            screens = app.screens()
-            updata, index = checkupdata()
-            if updata:
-                window.updata_window_show(index)
-            loop.run_forever()
-    except Exception as e:
-        logger.error(f"未标识的异常：{e}")
-        sys.exit(1)
+    add_errorfunc(errwin)
+
+    with loop:
+        screens = app.screens()
+        updata, index = checkupdata()
+        if updata:
+            window.updata_window_show(index)
+        loop.run_forever()

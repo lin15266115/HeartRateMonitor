@@ -1,8 +1,14 @@
 {
-    "name": "1.3.0-build",
-    "version": 1.00300003,
-    "frozen-name": "v1.2.2-alpha",
-    "frozen-version": 1.002002,
-    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.2.2-alpha",
-    "Githubindex": "https://github.com/lin15266115/HeartRateMonitor/tags"
+  "name": "1.3.0-build",
+  "version": 1.00300004,
+  "gxjs": "本次主要更新了更新检查相关功能, 优化了模块导入逻辑",
+  "frozen": {
+    "name": "v1.2.2-alpha",
+    "version": 1.002002,
+    "gxjs": "本次更新修改了更新检查相关功能, 优化了日志记录, 新增浮窗亮度滑条设置",
+    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.2.2-alpha"
+  },
+  "frozen-name": "版本更新: 允许关闭版本更新检查",
+  "frozen-version": 1.002002,
+  "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.2.2-alpha"
 }

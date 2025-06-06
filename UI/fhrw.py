@@ -1,4 +1,6 @@
-from .importpyqt import QWidget, QColor, Qt, QVBoxLayout, QLabel, QPoint
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtCore import QPoint, Qt
+from PyQt5.QtGui import QColor
 from config_manager import logger, try_except, ups, gs, update_settings
 __all__ = ["FloatingHeartRateWindow"]
 

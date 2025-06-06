@@ -1,19 +1,16 @@
-from .importpyqt import (QWidget, QVBoxLayout, QLabel, pyqtSignal
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel
     ,QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QListWidget
-    ,QSpinBox, QTextEdit, QMessageBox, QTimer, QFileDialog)
-from config_manager import logger, pip_install_models, try_except
+    ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog)
+from PyQt5.QtCore import pyqtSignal, QTimer
+from config_manager import logger, try_except
 from Blegetheartbeat import BLEHeartRateMonitor
 
 import asyncio
 import datetime
 
-def import_qasync():
-    global QEventLoop, asyncSlot
-    from qasync import QEventLoop, asyncSlot
+from qasync import asyncSlot
 
-pip_install_models(import_qasync, "qasync")
-
-__all__ = ["DeviceConnectionUI","QEventLoop"]
+__all__ = ["DeviceConnectionUI"]
 
 class DeviceConnectionUI(QWidget):
     heart_rate_updated = pyqtSignal(int)

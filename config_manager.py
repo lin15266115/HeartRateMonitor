@@ -110,7 +110,7 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
         logger.warning(f"缺少依赖包 {e.name}")
         # 检查是否是编译版本
         if getattr(sys, 'frozen', False):
-            logger.error("编译错误: 请确保编译时已安装所有依赖包")
+            logger.error("编译时错误: 请确保编译时已安装所有依赖包")
             sys.exit(1)
         else:
             # 尝试下载依赖包

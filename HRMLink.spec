@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='HeartRateMonitor1_3_0_t3',
+    name='HRMLink',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

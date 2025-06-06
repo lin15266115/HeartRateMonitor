@@ -1,21 +1,18 @@
-def import_PyQt5():
-    from . import importpyqt
-    for key, mode in importpyqt.import_PyQt5().items():
-        globals()[key] = mode
-
-# 触发IDE python类型提示
-try:
-    if nothing:from .importpyqt import * # type: ignore
-except:pass
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QWidget, QLineEdit,
+    QSpinBox, QMessageBox, QCheckBox, QGroupBox,
+    QSystemTrayIcon, QMenu, QSlider, QColorDialog)
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIcon, QPixmap
 
 import webbrowser
 
 from .fhrw import *
 from .DevCtrl import *
 from .heartratepng import *
-from config_manager import pip_install_models, try_except, ups, gs
+from config_manager import try_except, ups, gs
 
-pip_install_models(import_PyQt5, "pyqt5")
 
 # 主窗口类
 class MainWindow(QMainWindow):
@@ -109,16 +106,19 @@ class MainWindow(QMainWindow):
         self.float_ui.floating_window.close()
         QApplication.quit()
 
-    def updata_window_show(self, index):
+    def updata_window_show(self, index, vname, gxjs):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle('提示')
-        msg_box.setText('检测到有新版本可以更新')
-        msg_box.addButton("前往查看", QMessageBox.YesRole)
+        msg_box.setText(f'版本-{vname} 已发布: {gxjs}')
+        msg_box.addButton("GitCode", QMessageBox.YesRole)
+        msg_box.addButton("Github", QMessageBox.YesRole)
         btn_no = msg_box.addButton("取消", QMessageBox.NoRole)
         msg_box.setDefaultButton(btn_no)
         reply = msg_box.exec_()
         if reply == 0:
             webbrowser.open(index)
+        if reply == 1:
+            webbrowser.open("https://github.com/lin15266115/HeartRateMonitor/tags")
 
 # 浮动窗口UI类
 class FloatingWindowSettingUI(QWidget):
@@ -325,8 +325,15 @@ class AppSettingsUI(QWidget):
         self.tray_check.setChecked(self._get_set("tray_icon", True, bool))
         self.tray_check.stateChanged.connect(self.toggle_tray_icon)
         tray_layout.addWidget(self.tray_check)
-        
         settings_layout.addLayout(tray_layout)
+
+        update_layout = QHBoxLayout()
+        self.updatacheck = QCheckBox("启动时检查更新")
+        self.updatacheck.setChecked(self._get_set("update_check", True, bool))
+        self.updatacheck.stateChanged.connect(lambda state: self._up_set("update_check", state==Qt.Checked))
+        update_layout.addWidget(self.updatacheck)
+        settings_layout.addLayout(update_layout)
+
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         self.setLayout(layout)

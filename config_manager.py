@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import logging
 from typing import Any
 
@@ -19,6 +20,22 @@ def getlogger():
         os.rename('log/loger1.log', 'log/loger2.log')
 
     handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
+    handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
+
+def upmod_logger():
+    global logger
+
+    logger = logging.getLogger('__main__')
+
+    if not os.path.exists('log'):
+        os.mkdir('log')
+
+    handler = logging.FileHandler('log/uplog.log', 'w', encoding='utf-8')
     handler.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -126,7 +143,7 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
                 logger.info(f"已安装依赖包: {pip_modelname}")
                 import_models_func()
             except Exception as e:
-                logger.error(f"依赖包安装失败: {e}")
+                logger.error(f"依赖包安装失败: {e}", exc_info=True)
                 sys.exit(1)
     except Exception as e:
         logger.error(f"无法导入模块: {e}")
@@ -148,3 +165,76 @@ def ups(section, option: str, value, debugn = ""):
     config.set(section, option, str(value))
     logger.debug(f'[{debugn}] 更新配置项 {option} 的值: {value}')
     save_settings()
+
+# 处理更新模式
+def handle_update_mode():
+    """处理更新模式，替换旧的主程序"""
+    try:
+        # 获取当前可执行文件路径(upd.exe)
+        current_exe = sys.executable
+        logger.info(f"当前更新程序路径: {current_exe}")
+        
+        # 获取目标路径(HRMLink.exe)
+        target_dir = os.path.dirname(current_exe)
+        target_exe = os.path.join(target_dir, "HRMLink.exe")
+        
+        # 删除旧的主程序
+        if os.path.exists(target_exe):
+            logger.info("正在删除旧的主程序...")
+            os.remove(target_exe)
+        
+        # 将upd.exe复制为HRMLink.exe
+        logger.info("正在复制更新文件...")
+        shutil.copy2(current_exe, target_exe)
+        
+        # 以-endup参数运行新的主程序
+        logger.info("启动新的主程序...")
+        os.startfile(target_exe, arguments="-endup")
+        
+        # 退出当前进程
+        logger.info("更新程序即将退出...")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"更新过程中出错: {e}")
+        sys.exit(1)
+
+# 处理更新结束模式
+def handle_end_update():
+    """处理更新结束，清理更新文件"""
+    try:
+        # 获取当前可执行文件路径(HRMLink.exe)
+        current_exe = sys.executable
+        logger.info(f"当前主程序路径: {current_exe}")
+        
+        # 获取更新文件路径(upd.exe)
+        target_dir = os.path.dirname(current_exe)
+        update_exe = os.path.join(target_dir, "upd.exe")
+        
+        # 删除更新文件
+        if os.path.exists(update_exe):
+            logger.info("正在清理更新文件...")
+            os.remove(update_exe)
+    except Exception as e:
+        logger.error(f"清理更新文件时出错: {e}")
+
+# 启动更新程序
+def start_update_program():
+    """启动更新程序"""
+    try:
+        # 获取当前可执行文件路径(HRMLink.exe)
+        current_exe = sys.executable
+        logger.info(f"当前主程序路径: {current_exe}")
+        
+        # 获取更新文件路径(upd.exe)
+        target_dir = os.path.dirname(current_exe)
+        update_exe = os.path.join(target_dir, "upd.exe")
+        
+        # 启动更新程序
+        logger.info("正在启动更新程序...")
+        os.startfile(update_exe, arguments="-updatemode")
+
+        logger.info("更新程序已启动，请稍等...")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"启动更新程序时出错: {e}")
+        sys.exit(1)

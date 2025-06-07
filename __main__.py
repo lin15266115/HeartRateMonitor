@@ -1,17 +1,31 @@
-import os
 import sys
 import json
 import asyncio
+import argparse
 import threading
 
 is_frozen = getattr(sys, 'frozen', False)
 
-frozenvname = "v1.2.2-alpha"
-frozenver = 1.002002
+frozenvname = "v1.3.0-alpha"
+frozenver = 1.003000
 
-from config_manager import getlogger, init_config, add_errorfunc, handle_exception, pip_install_models
+from config_manager import (
+     getlogger, upmod_logger, add_errorfunc, handle_exception
+    ,init_config, pip_install_models
+    ,handle_update_mode,handle_end_update
+)
 
-logger = getlogger()
+# 解析命令行参数
+parser = argparse.ArgumentParser()
+parser.add_argument('-updatemode', action='store_true', help='更新模式标志')
+parser.add_argument('-endup', action='store_true', help='更新结束标志')
+args = parser.parse_args()
+
+# 如果是更新模式，使用简单日志输出
+if args.updatemode:
+    logger = upmod_logger()
+else:
+    logger = getlogger()
 
 # 设置全局异常钩子
 sys.excepthook = handle_exception
@@ -19,21 +33,30 @@ sys.excepthook = handle_exception
 if is_frozen:
     __version__ = frozenvname
     ver = frozenver
+
+    # 如果是更新模式，直接处理更新并退出
+    if args.updatemode:
+        logger.info("进入更新模式...")
+        handle_update_mode()
+
+    # 如果是更新结束模式，清理更新文件后继续
+    if args.endup:
+        logger.info("进入更新结束模式...")
+        handle_end_update()
 else:
     __version__ = '1.3.0-build'
-    ver = 1.00300004
-    # 检查或创建文件
-    os.makedirs("log", exist_ok=True)
+    ver = 1.00300005
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": ver
-            ,"gxjs": "本次主要更新了更新检查相关功能, 优化了模块导入逻辑"
+            ,"gxjs": "本次更新了用于版本更新自动替换的相关功能"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
                 ,"gxjs": "本次更新修改了更新检查相关功能, 优化了日志记录, 新增浮窗亮度滑条设置"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
+                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{frozenvname}/HRMLink.exe"
             }
             ,"frozen-name":  "版本更新: 允许关闭版本更新检查"
             ,"frozen-version": frozenver
@@ -54,8 +77,8 @@ def import_qasync():
     global QEventLoop
     from qasync import QEventLoop
 
-pip_install_models(import_qasync, "qasync")
 pip_install_models(import_pyqt5, "pyqt5")
+pip_install_models(import_qasync, "qasync")
 
 from UI import MainWindow
 
@@ -113,6 +136,6 @@ if __name__ == "__main__":
             if window.settings_ui._get_set('update_check',True,bool):
                 updata, index, vname, gxjs = checkupdata()
                 if updata:
-                    window.updata_window_show(index, vname, gxjs)
+                    window.updata_window_show(index, vname, gxjs, is_frozen)
         threading.Thread(target=upc).start()
         loop.run_forever()

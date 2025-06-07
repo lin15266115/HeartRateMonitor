@@ -11,8 +11,7 @@ import webbrowser
 from .fhrw import *
 from .DevCtrl import *
 from .heartratepng import *
-from config_manager import try_except, ups, gs
-
+from config_manager import try_except, ups, gs, start_update_program
 
 # 主窗口类
 class MainWindow(QMainWindow):
@@ -25,8 +24,7 @@ class MainWindow(QMainWindow):
         
     def setup_ui(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
-        self.setGeometry(100, 100, 800, 600)
-        self.setFixedSize(self.width(), self.height())
+        self.setFixedSize(700, 500)
         # 状态栏
         self.status_label = QLabel("准备就绪")
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -37,10 +35,8 @@ class MainWindow(QMainWindow):
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
 
-        setting_widget = QWidget()
         setting_layout = QHBoxLayout()
-        setting_widget.setLayout(setting_layout)
-        main_layout.addWidget(setting_widget, stretch=2)
+        main_layout.addLayout(setting_layout, stretch=2)
 
         # 添加各个模块
         self.device_ui = DeviceConnectionUI(self.status_label)
@@ -50,13 +46,11 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(self.settings_ui.app_icon)
 
         right_layout = QVBoxLayout()
-        right_widget = QWidget()
-        right_layout.addWidget(self.float_ui)
-        right_layout.addWidget(self.settings_ui)
-        right_widget.setLayout(right_layout)
+        right_layout.addWidget(self.float_ui, 2)
+        right_layout.addWidget(self.settings_ui, 1)
 
-        setting_layout.addWidget(self.device_ui, stretch=2)
-        setting_layout.addWidget(right_widget, stretch=1)
+        setting_layout.addLayout(self.device_ui, stretch=2)
+        setting_layout.addLayout(right_layout, stretch=1)
 
         main_layout.addWidget(self.status_label)
 
@@ -71,7 +65,7 @@ class MainWindow(QMainWindow):
         """显示设置窗口"""
         self.show()
         self.activateWindow()
-        
+
     def closeEvent(self, event):
         """窗口关闭事件"""
         if self.settings_ui.tray_icon and self.settings_ui.tray_icon.isVisible():
@@ -85,7 +79,7 @@ class MainWindow(QMainWindow):
                     self, '确认',
                     "当前已连接设备，确定要退出吗?",
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                
+
                 if reply == QMessageBox.Yes:
                     self.close_application()
                     event.accept()
@@ -106,10 +100,10 @@ class MainWindow(QMainWindow):
         self.float_ui.floating_window.close()
         QApplication.quit()
 
-    def updata_window_show(self, index, vname, gxjs):
+    def updata_window_show(self, index, vname, gxjs, is_frozen):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle('提示')
-        msg_box.setText(f'版本-{vname} 已发布: {gxjs}')
+        msg_box.setText(f'版本-{vname} 已更新:\n {gxjs}')
         msg_box.addButton("GitCode", QMessageBox.YesRole)
         msg_box.addButton("Github", QMessageBox.YesRole)
         btn_no = msg_box.addButton("取消", QMessageBox.NoRole)
@@ -117,8 +111,11 @@ class MainWindow(QMainWindow):
         reply = msg_box.exec_()
         if reply == 0:
             webbrowser.open(index)
-        if reply == 1:
-            webbrowser.open("https://github.com/lin15266115/HeartRateMonitor/tags")
+        elif reply == 1:
+            if is_frozen:
+                webbrowser.open("https://github.com/lin15266115/HeartRateMonitor/releases")
+            else:
+                webbrowser.open("https://github.com/lin15266115/HeartRateMonitor")
 
 # 浮动窗口UI类
 class FloatingWindowSettingUI(QWidget):
@@ -334,6 +331,13 @@ class AppSettingsUI(QWidget):
         update_layout.addWidget(self.updatacheck)
         settings_layout.addLayout(update_layout)
 
+        # 测试更新替换功能
+        update_layout = QHBoxLayout()
+        self.update_check = QPushButton("测试更新替换功能")
+        self.update_check.clicked.connect(self.update_test)
+        update_layout.addWidget(self.update_check)
+        settings_layout.addLayout(update_layout)
+
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         self.setLayout(layout)
@@ -383,6 +387,19 @@ class AppSettingsUI(QWidget):
 
     def _get_set(self, option: str, default, type_ = None):
         return gs('GUI', option, default, type_ , debugn="GUI")
+    
+    def update_test(self):
+        msg = QMessageBox()
+        msg.setText("测试更新替换功能(仅测试使用,请不要点击确定)")
+        msg.setInformativeText("是否重启应用更新？")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+
+        ret = msg.exec_()
+        if ret == QMessageBox.Yes:
+            start_update_program()
+        else:
+            pass
     
 
 class Slider_(QSlider):

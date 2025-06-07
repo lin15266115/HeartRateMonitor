@@ -12,7 +12,7 @@ from qasync import asyncSlot
 
 __all__ = ["DeviceConnectionUI"]
 
-class DeviceConnectionUI(QWidget):
+class DeviceConnectionUI(QVBoxLayout):
     heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)
 
@@ -26,7 +26,6 @@ class DeviceConnectionUI(QWidget):
         self.setup_ui()
 
     def setup_ui(self):
-        layout = QVBoxLayout()
 
         # 设备扫描区域
         scan_group = QGroupBox("设备管理")
@@ -111,10 +110,9 @@ class DeviceConnectionUI(QWidget):
 
         data_group.setLayout(data_layout)
         
-        layout.addWidget(scan_group)
-        layout.addWidget(control_group)
-        layout.addWidget(data_group)
-        self.setLayout(layout)
+        self.addWidget(scan_group)
+        self.addWidget(control_group)
+        self.addWidget(data_group)
 
         # 定时器用于更新链接信息UI
         self.update_timer = QTimer()
@@ -170,7 +168,7 @@ class DeviceConnectionUI(QWidget):
             self.scan_timer.timeout.connect(self.scan_devices)
 
         if state:
-            self.scan_timer.start(5000)
+            self.scan_timer.start(10000)
         else:
             self.scan_timer.stop()
 

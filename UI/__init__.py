@@ -10,6 +10,7 @@ import webbrowser
 
 from .fhrw import *
 from .DevCtrl import *
+from .basicwidgets import *
 from .heartratepng import *
 from config_manager import try_except, ups, gs, start_update_program
 
@@ -117,186 +118,6 @@ class MainWindow(QMainWindow):
             else:
                 webbrowser.open("https://github.com/lin15266115/HeartRateMonitor")
 
-# 浮动窗口UI类
-class FloatingWindowSettingUI(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.floating_window = FloatingHeartRateWindow()
-        self.save_ = {"bg_opacity": False, "bg_brightness": False}
-        self.setup_ui()
-
-    def setup_ui(self):
-        layout = QVBoxLayout()
-
-        float_group = QGroupBox("浮动窗口设置")
-        float_layout = QVBoxLayout()
-
-        # 显示控制
-        display_layout = QHBoxLayout()
-        self.float_window_check = QCheckBox("显示浮动窗口")
-
-        # 鼠标穿透设置
-        fwindow_canlook = self.floating_window._get_set('canlook', True, bool)
-        self.float_window_check.setChecked(fwindow_canlook)
-        self.float_window_check.stateChanged.connect(self.toggle_floating_window)
-
-        self.click_through_check = QCheckBox("鼠标穿透")
-        self.click_through_check.setChecked(self.floating_window._get_set('lock', False, bool))
-        self.click_through_check.stateChanged.connect(self.toggle_click_through)
-
-        display_layout.addWidget(self.float_window_check)
-        display_layout.addWidget(self.click_through_check)
-        float_layout.addLayout(display_layout)
-
-        # 文字颜色设置
-        color_layout = QHBoxLayout()
-        self.text_color_button = QPushButton("文字颜色")
-        self.text_color_button.clicked.connect(self.set_text_color)
-
-        self.text_color_preview = QLabel()
-        self.text_color_preview.setFixedSize(20, 20)
-        self.text_color_preview.setStyleSheet(f"background-color: {self.floating_window.text_color.name()}; border: 1px solid black;")
-
-        color_layout.addWidget(QLabel("文字颜色:"))
-        color_layout.addWidget(self.text_color_button)
-        color_layout.addWidget(self.text_color_preview)
-        color_layout.addStretch()
-        float_layout.addLayout(color_layout)
-
-        # 字体大小设置
-        font_layout = QHBoxLayout()
-        self.font_size_spin = QSpinBox()
-        self.font_size_spin.setRange(10, 100)
-        self.font_size_spin.setValue(self.floating_window.font_size)
-        self.font_size_spin.valueChanged.connect(self.set_font_size)
-
-        font_layout.addWidget(QLabel("字体大小:"))
-        font_layout.addWidget(self.font_size_spin)
-        float_layout.addLayout(font_layout)
-
-        # 文字内容设置
-        text_layout = QHBoxLayout()
-        self.text_edit = QLineEdit()
-        self.text_edit.setText(self.floating_window.text_base)
-        self.text_edit.textChanged.connect(self.set_text_base)
-        text_layout.addWidget(QLabel("文字内容:"))
-        text_layout.addWidget(self.text_edit)
-        float_layout.addLayout(text_layout)
-
-        # 背景内边距设置
-        padding_layout = QHBoxLayout()
-        self.padding_spin = QSpinBox()
-        self.padding_spin.setRange(0, 100)
-        self.padding_spin.setValue(self.floating_window.padding)
-        self.padding_spin.valueChanged.connect(self.set_padding)
-
-        padding_layout.addWidget(QLabel("背景内边距:"))
-        padding_layout.addWidget(self.padding_spin)
-        float_layout.addLayout(padding_layout)
-
-        # 背景透明度设置
-        opacity_layout = QHBoxLayout()
-        bgop = self.floating_window.bg_opacity
-        self.opacity_slider = Slider_(bgop, self.set_bg_opacity)
-
-        opacity_layout.addWidget(QLabel("背景透明度:"))
-        opacity_layout.addWidget(self.opacity_slider)
-        float_layout.addLayout(opacity_layout)
-
-        # 背景亮度设置
-        brightness_layout = QHBoxLayout()
-        bg_brightness = self.floating_window.bg_brightness
-        self.brightness_slider = Slider_(bg_brightness, self.set_bg_brightness)
-
-        brightness_layout.addWidget(QLabel("背景亮度:"))
-        brightness_layout.addWidget(self.brightness_slider)
-        float_layout.addLayout(brightness_layout)
-
-        # 注册为常规窗口
-        register_layout = QHBoxLayout()
-        self.register_window_check = QCheckBox("注册为常规窗口(OBS捕获)")
-        register_window_check_state = self.floating_window._get_set('register_as_window', False, bool)
-        self.register_window_check.setChecked(register_window_check_state)
-        self.register_window_check.stateChanged.connect(self.toggle_register_as_window)
-        register_layout.addWidget(self.register_window_check)
-        float_layout.addLayout(register_layout)
-
-        float_group.setLayout(float_layout)
-        layout.addWidget(float_group)
-        self.setLayout(layout)
-
-        # 显示浮动窗口
-        if fwindow_canlook:
-            self.floating_window.show()
-        else:
-            self.floating_window.hide()
-
-    def update_heart_rate(self, heart_rate=None):
-        self.floating_window.update_heart_rate(heart_rate)
-
-    def toggle_floating_window(self, state):
-        """切换浮动窗口显示"""
-        if state == Qt.Checked:
-            self.floating_window.show()
-            self.floating_window._up_set('canlook', True)
-        else:
-            self.floating_window.hide()
-            self.floating_window._up_set('canlook', False)
-
-    def toggle_click_through(self, state):
-        """切换鼠标穿透"""
-        if state == Qt.Checked:
-            self.floating_window.setWindowFlags(
-                self.floating_window.windowFlags() | 
-                Qt.WindowTransparentForInput
-            )
-            self.floating_window._up_set('lock', True)
-        else:
-            self.floating_window.setWindowFlags(
-                self.floating_window.windowFlags() & 
-                ~Qt.WindowTransparentForInput
-            )
-            self.floating_window._up_set('lock', False) 
-        self.floating_window.show()
-
-    def toggle_register_as_window(self, state):
-        """切换是否注册为常规窗口"""
-        self.floating_window.set_register_as_window(state == Qt.Checked)
-
-    def set_text_color(self):
-        """设置文字颜色"""
-        color = QColorDialog.getColor(self.floating_window.text_color, self)
-        if color.isValid():
-            self.floating_window.set_text_color(color)
-            self.text_color_preview.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
-
-    def set_font_size(self, size):
-        """设置字体大小"""
-        self.floating_window.set_font_size(size)
-
-    def set_text_base(self, base):
-        """设置基础文字内容"""
-        if "{rate}" in base:
-            self.floating_window.text_base = base
-            self.floating_window.update_heart_rate()
-            self.floating_window._up_set("text_base", base)
-        else:
-            self.text_edit.setText(self.floating_window.text_base)
-            copybut = QMessageBox.Yes
-            QMessageBox.warning(self, "警告", "请使用 {rate} 来表示心率", copybut | QMessageBox.Default)
-
-    def set_padding(self, padding):
-        """设置背景内边距"""
-        self.floating_window.set_padding(padding)
-
-    def set_bg_opacity(self, value=None, ups_=None):
-        """设置背景透明度"""
-        self.floating_window.set_bg_opacity(value,ups_)
-
-    def set_bg_brightness(self, value=None, ups_=True):
-        """设置背景亮度"""
-        self.floating_window.set_bg_brightness(value,ups_)
-
 # 应用设置UI类
 class AppSettingsUI(QWidget):
     quit_application = pyqtSignal()
@@ -316,20 +137,19 @@ class AppSettingsUI(QWidget):
         settings_group = QGroupBox("软件设置")
         settings_layout = QVBoxLayout()
         
-        # 托盘图标设置
-        tray_layout = QHBoxLayout()
-        self.tray_check = QCheckBox("启用托盘图标")
-        self.tray_check.setChecked(self._get_set("tray_icon", True, bool))
-        self.tray_check.stateChanged.connect(self.toggle_tray_icon)
-        tray_layout.addWidget(self.tray_check)
-        settings_layout.addLayout(tray_layout)
+        CheackBox_(
+             "启用托盘图标"
+            ,settings_layout
+            ,self._get_set("tray_icon", True, bool)
+            ,self.toggle_tray_icon
+        )
 
-        update_layout = QHBoxLayout()
-        self.updatacheck = QCheckBox("启动时检查更新")
-        self.updatacheck.setChecked(self._get_set("update_check", True, bool))
-        self.updatacheck.stateChanged.connect(lambda state: self._up_set("update_check", state==Qt.Checked))
-        update_layout.addWidget(self.updatacheck)
-        settings_layout.addLayout(update_layout)
+        CheackBox_(
+             "启动时检查更新"
+            ,settings_layout
+            ,self._get_set("update_check", True, bool)
+            ,lambda state: self._up_set("update_check", state==Qt.Checked)
+        )
 
         # 测试更新替换功能
         update_layout = QHBoxLayout()
@@ -400,21 +220,4 @@ class AppSettingsUI(QWidget):
             start_update_program()
         else:
             pass
-    
 
-class Slider_(QSlider):
-    def __init__(self, initial_value, value_changed_callback, Range = (0, 255)):
-        super().__init__(Qt.Horizontal)
-        self.value_changed_callback = value_changed_callback
-
-        self.setRange(*Range)
-        self.setValue(initial_value)
-
-        # 连接信号和槽
-        self.valueChanged.connect(
-            lambda value: self.value_changed_callback(value, ups_=False)
-        )
-
-    def mousePressEvent(self, a0):
-        super().mousePressEvent(a0)
-        self.value_changed_callback(ups_=True)

@@ -1,10 +1,13 @@
 import os
 import sys
+import json
 import shutil
 import logging
+import urllib.request
 from typing import Any
 
 __all__  = ['getlogger','logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'try_except']
+ver:float = 100
 
 def getlogger():
     global logger
@@ -238,3 +241,30 @@ def start_update_program():
     except Exception as e:
         logger.error(f"启动更新程序时出错: {e}")
         sys.exit(1)
+
+def checkupdata(is_frozen:bool) -> tuple[bool, str, str, str]:
+    logger.info("检查更新中...")
+    try:
+        url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
+
+        with urllib.request.urlopen(url) as response: 
+            # 读取json格式
+            data = json.loads(response.read().decode('utf-8'))
+
+            if is_frozen:
+                data_ = data['frozen']
+                up_index = data_['index']
+            else:
+                data_ = data
+                up_index = 'https://gitcode.com/lin15266115/HeartBeat'
+            vnumber = data_['version']
+            vname = data_['name']
+            gxjs = data_['gxjs']
+            if vnumber > ver:
+                logger.info(f"发现新版本 {vname}[{vnumber}]")
+                return True, up_index, vname, gxjs
+            else:
+                logger.info("当前已是最新版本")
+    except Exception as e:
+        logger.warning(f"更新检查失败: {e}")
+    return False, '', '', ''

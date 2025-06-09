@@ -4,3 +4,4 @@ dist/
 log/
 _oldfiles/
 config.ini
+nuitka/

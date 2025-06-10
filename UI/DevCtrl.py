@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import (QVBoxLayout, QLabel
     ,QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QListWidget
-    ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog)
-from PyQt5.QtCore import pyqtSignal, QTimer
+    ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
+from PyQt5.QtCore import pyqtSignal, QTimer, Qt
 from config_manager import logger, try_except
 from Blegetheartbeat import BLEHeartRateMonitor
 
@@ -15,6 +15,7 @@ __all__ = ["DeviceConnectionUI"]
 class DeviceConnectionUI(QVBoxLayout):
     heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)
+    DEVICE_DATA_ROLE = Qt.UserRole + 1  # 自定义数据角色
 
     def __init__(self, status_label):
         super().__init__()
@@ -22,7 +23,9 @@ class DeviceConnectionUI(QVBoxLayout):
         self.ble_monitor.heart_rate_callback = self.on_heart_rate_update
         self.status_label = status_label
         self.linking = False
-        self.quit_setstadus = True
+        self.quit_ = False
+        self.be_timeout = False
+        self.selected_device = None  # 存储选择的设备信息
         self.setup_ui()
 
     def setup_ui(self):
@@ -58,6 +61,7 @@ class DeviceConnectionUI(QVBoxLayout):
         scan_layout.addLayout(btn_layout)
 
         self.device_list = QListWidget()
+        self.device_list.itemClicked.connect(self.on_device_selected)
         device_textlayout = QHBoxLayout()
         self.device_list_status = QLabel()
 
@@ -127,18 +131,59 @@ class DeviceConnectionUI(QVBoxLayout):
     def filter_empty(self, state):
             self.ble_monitor.filter_empty = state
 
+    def on_device_selected(self, item):
+        """处理设备选择事件"""
+        # 清除之前选择的标记
+        for i in range(self.device_list.count()):
+            list_item = self.device_list.item(i)
+            text = list_item.text()
+            if text.startswith("[已选择]"):
+                # 恢复原始名称
+                original_text = list_item.data(self.DEVICE_DATA_ROLE)
+                if original_text:
+                    list_item.setText(original_text)
+        
+        # 存储当前选择的设备信息
+        device_text = item.text()
+        self.selected_device = {
+            "name": device_text.split(" (")[0].strip(),
+            "address": device_text[device_text.find("(")+1:device_text.find(")")]
+        }
+        
+        # 添加"[已选择]"标记并更新显示
+        marked_text = f"[已选择]{device_text}"
+        item.setText(marked_text)
+        
+        # 保存原始文本到用户数据
+        item.setData(self.DEVICE_DATA_ROLE, device_text)
+
     @asyncSlot()
     async def scan_devices(self):
         """扫描BLE设备"""
+        # 保存当前选择状态
+        current_address = self.selected_device["address"] if self.selected_device else None
+        
         self.device_list_status.setText("正在扫描设备...")
 
         try:
             devices = await self.ble_monitor.scan_devices()
 
             self.device_list.clear()
-            
+
             for device in devices:
-                self.device_list.addItem(f"{device.name} ({device.address})")
+                item_text = f"{device.name} ({device.address})"
+                item = QListWidgetItem(item_text)
+                item.setData(self.DEVICE_DATA_ROLE, item_text)  # 存储原始文本
+
+                # 如果这是之前选择的设备，添加标记
+                if current_address and device.address == current_address:
+                    item.setText(f"[已选择]{item_text}")
+                    self.selected_device = {
+                        "name": device.name,
+                        "address": device.address
+                    }
+
+                self.device_list.addItem(item)
 
             self.device_list_status.setText(f"找到 {len(devices)} 个设备")
             self.noscanerror_win = False
@@ -172,28 +217,25 @@ class DeviceConnectionUI(QVBoxLayout):
         else:
             self.scan_timer.stop()
 
-
     @asyncSlot()
     async def connect_device(self):
         """连接选定的设备"""
-        selected_item = self.device_list.currentItem()
-        if not selected_item:
+        if not self.selected_device:
             self.status_label.setText("请先选择设备")
             return
 
-        device_info = selected_item.text()
-        findL = device_info.find("(")
-        device_address = device_info[findL+1 : device_info.find(")")]
-        device_name = device_info[:findL-1]
+        device_name = self.selected_device["name"]
+        device_address = self.selected_device["address"]
+
+        self.linking = True
 
         self.status_label.setText(f"正在连接 {device_name}...")
-        logger.info(f"尝试连接 {device_info}")
+        logger.info(f"尝试连接 {device_name} ({device_address})")
 
         try:
-            self.linking = True
             success, rtext = await self.ble_monitor.connect_device(device_address)
             self.status_label.setText(rtext.format(device_address=device_name))
-            logger.info(rtext.format(device_address=device_info))
+            logger.info(rtext.format(device_address=f"{device_name} ({device_address})"))
             if success:
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
 
@@ -208,7 +250,7 @@ class DeviceConnectionUI(QVBoxLayout):
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
             logger.error(f"连接设备时出错: {e}", exc_info=True)
         self.linking = False
-    
+
     def disconnect_error(self, e):
             self.status_label.setText(f"断开连接错误: {str(e)}")
 
@@ -217,9 +259,10 @@ class DeviceConnectionUI(QVBoxLayout):
     async def disconnect_device(self):
         """断开当前连接"""
         self.disconnect_button.setEnabled(False)
+        self.quit_ = True
         success = await self.ble_monitor.disconnect_device()
         if success:
-            self.quit_setstadus = True
+            self.be_timeout = False
             self.status_label.setText("已断开连接")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
             logger.info("已断开连接")
@@ -234,6 +277,9 @@ class DeviceConnectionUI(QVBoxLayout):
                     f"平均: {stats['avg']:.1f} BPM\n"
                     f"共记录 {stats['count']} 条数据"
                 )
+        else:
+            self.status_label.setText("断开连接失败")
+        self.quit_ = False
 
     def save_data(self):
         """保存心率数据到文件"""
@@ -257,13 +303,15 @@ class DeviceConnectionUI(QVBoxLayout):
 
     def update_ui(self):
         """更新UI状态"""
-        if (self.ble_monitor.client and self.ble_monitor.client.is_connected) or self.linking:
-            self.quit_setstadus = False
+        if self.quit_ == True or self.linking:pass
+        elif self.ble_monitor.client and self.ble_monitor.client.is_connected:
+            self.be_timeout = True
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
         else:
-            if self.quit_setstadus == False:
+            if self.be_timeout:
                 self.status_label.setText("链接被断开")
-                self.quit_setstadus = True
+                self.be_timeout = False
+            self.heart_rate_updated.emit(-1)
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)

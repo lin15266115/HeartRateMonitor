@@ -47,7 +47,7 @@ if is_frozen:
         handle_end_update()
 else:
     __version__ = '1.3.1-build'
-    ver = 1.00300100
+    ver = 1.00300101
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
@@ -64,7 +64,8 @@ else:
         json.dump(sdata, f, ensure_ascii=False, indent=2)
 
 config_manager.ver = ver
-logger.info(f'运行程序 -{__version__}[{ver}]'.join(' '+argv for argv in sys.argv[1:] if argv))
+
+logger.info(f"运行程序 -{__version__}[{ver}]" + " ".join(argv for argv in sys.argv if argv))
 logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 init_config()

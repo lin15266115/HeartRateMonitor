@@ -101,6 +101,8 @@ class FloatingHeartRateWindow(QWidget):
 
     def update_heart_rate(self, rate=None):
         """更新心率显示"""
+        if (rate or -1) < 0:
+            rate = None
         self.heart_rate_label.setText(self.text_base.format(rate=rate if rate else '--'))
         
         maxc = self.bg_brightness

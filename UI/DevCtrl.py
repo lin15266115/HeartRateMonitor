@@ -27,6 +27,7 @@ class DeviceConnectionUI(QVBoxLayout):
         self.be_timeout = False
         self.selected_device = None  # 存储选择的设备信息
         self.setup_ui()
+        QTimer.singleShot(500, lambda: self.scan_devices())
 
     def setup_ui(self):
 

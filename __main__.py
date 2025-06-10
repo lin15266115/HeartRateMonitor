@@ -6,15 +6,15 @@ import threading
 
 is_frozen = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 
-frozenvname = "v1.3.0-alpha"
-frozenver = 1.003000
+frozenvname = "v1.3.1-alpha"
+frozenver = 1.003001
 
 import config_manager
 from config_manager import (
      getlogger, upmod_logger, add_errorfunc, handle_exception
     ,init_config, pip_install_models
     ,handle_update_mode,handle_end_update
-    ,checkupdata
+    ,checkupdate
 )
 
 # 解析命令行参数
@@ -47,16 +47,18 @@ if is_frozen:
         handle_end_update()
 else:
     __version__ = '1.3.1-build'
-    ver = 1.00300101
+    ver = 1.00300102
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": ver
-            ,"gxjs": "改进浮窗和一系列优化"
+            ,"gxjs": "本次更新补充了1.3.0遗漏的启动后立刻查找蓝牙设备的功能"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
-                ,"gxjs": "本次更新修改了更新检查相关功能, 优化了日志记录, 新增浮窗亮度滑条设置"
+                # 基于输入日期生成timestamp
+                ,"updateTime": "2025-06-11-00:00:00"
+                ,"gxjs": "本次更新优化和改进了浮窗设置、设备连接等问题，不再支持老版本的更新提示"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{frozenvname}/HRMLink.exe"
             }
@@ -108,7 +110,7 @@ if __name__ == "__main__":
         screens = app.screens()
         def upc():
             if window.settings_ui._get_set('update_check',True,bool):
-                updata, index, vname, gxjs = checkupdata(is_frozen)
+                updata, index, vname, gxjs = checkupdate(is_frozen)
                 if updata:
                     window.updata_window_show(index, vname, gxjs, is_frozen)
         threading.Thread(target=upc).start()

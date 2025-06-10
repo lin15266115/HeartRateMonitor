@@ -1,15 +1,13 @@
 {
   "name": "1.3.1-build",
-  "version": 1.00300101,
-  "gxjs": "改进连接设备和一些优化",
+  "version": 1.00300102,
+  "gxjs": "本次更新补充了1.3.0遗漏的启动后立刻查找蓝牙设备的功能",
   "frozen": {
-    "name": "v1.3.0-alpha",
-    "version": 1.003,
-    "gxjs": "本次更新修改了更新检查相关功能, 优化了日志记录, 新增浮窗亮度滑条设置",
-    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.3.0-alpha",
-    "download": "https://gitcode.com/lin15266115/HeartBeat/releases/download/v1.3.0-alpha/HRMLink.exe"
-  },
-  "frozen-name": "版本更新: 允许关闭版本更新检查",
-  "frozen-version": 1.003,
-  "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.3.0-alpha"
+    "name": "v1.3.1-alpha",
+    "version": 1.003001,
+    "updateTime": "2025-06-11-00:00:00",
+    "gxjs": "本次更新优化和改进了浮窗设置、设备连接等问题，不再支持老版本的更新提示",
+    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.3.1-alpha",
+    "download": "https://gitcode.com/lin15266115/HeartBeat/releases/download/v1.3.1-alpha/HRMLink.exe"
+  }
 }

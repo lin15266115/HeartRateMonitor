@@ -3,6 +3,7 @@ import sys
 import json
 import shutil
 import logging
+import datetime
 import urllib.request
 from typing import Any
 
@@ -242,7 +243,7 @@ def start_update_program():
         logger.error(f"启动更新程序时出错: {e}")
         sys.exit(1)
 
-def checkupdata(is_frozen:bool) -> tuple[bool, str, str, str]:
+def checkupdate(is_frozen:bool) -> tuple[bool, str, str, str]:
     logger.info("检查更新中...")
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
@@ -254,6 +255,12 @@ def checkupdata(is_frozen:bool) -> tuple[bool, str, str, str]:
             if is_frozen:
                 data_ = data['frozen']
                 up_index = data_['index']
+                updatetime = data_['updateTime']
+                try:
+                    if datetime.datetime.now() < datetime.datetime.strptime(updatetime, '%Y-%m-%d-%H:%M:%S'):
+                        return False, '', '', ''
+                except Exception as e:
+                    logger.error(f"更新时间检查失败:{e}")
             else:
                 data_ = data
                 up_index = 'https://gitcode.com/lin15266115/HeartBeat'

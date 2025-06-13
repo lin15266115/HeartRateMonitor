@@ -7,8 +7,8 @@ import datetime
 import urllib.request
 from typing import Any
 
-__all__  = ['getlogger','logger','config', 'init_config', 'update_settings', 'save_settings', 'pip_install_models',  'gs', 'ups', 'try_except']
 ver:float = 100
+is_frozen = None
 
 def getlogger():
     global logger
@@ -39,7 +39,7 @@ def upmod_logger():
     if not os.path.exists('log'):
         os.mkdir('log')
 
-    handler = logging.FileHandler('log/uplog.log', 'w', encoding='utf-8')
+    handler = logging.FileHandler('log/uplog.log', 'a', encoding='utf-8')
     handler.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -177,16 +177,16 @@ def handle_update_mode():
         # 获取当前可执行文件路径(upd.exe)
         current_exe = sys.executable
         logger.info(f"当前更新程序路径: {current_exe}")
-        
+
         # 获取目标路径(HRMLink.exe)
         target_dir = os.path.dirname(current_exe)
         target_exe = os.path.join(target_dir, "HRMLink.exe")
-        
+
         # 删除旧的主程序
         if os.path.exists(target_exe):
             logger.info("正在删除旧的主程序...")
             os.remove(target_exe)
-        
+
         # 将upd.exe复制为HRMLink.exe
         logger.info("正在复制更新文件...")
         shutil.copy2(current_exe, target_exe)
@@ -194,7 +194,7 @@ def handle_update_mode():
         # 以-endup参数运行新的主程序
         logger.info("启动新的主程序...")
         os.startfile(target_exe, arguments="-endup")
-        
+
         # 退出当前进程
         logger.info("更新程序即将退出...")
         sys.exit(0)
@@ -243,7 +243,7 @@ def start_update_program():
         logger.error(f"启动更新程序时出错: {e}")
         sys.exit(1)
 
-def checkupdate(is_frozen:bool) -> tuple[bool, str, str, str]:
+def checkupdate() -> tuple[bool, str, str, str, str]:
     logger.info("检查更新中...")
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
@@ -251,6 +251,8 @@ def checkupdate(is_frozen:bool) -> tuple[bool, str, str, str]:
         with urllib.request.urlopen(url) as response: 
             # 读取json格式
             data = json.loads(response.read().decode('utf-8'))
+            
+            durl = data['frozen']['download']
 
             if is_frozen:
                 data_ = data['frozen']
@@ -258,7 +260,7 @@ def checkupdate(is_frozen:bool) -> tuple[bool, str, str, str]:
                 updatetime = data_['updateTime']
                 try:
                     if datetime.datetime.now() < datetime.datetime.strptime(updatetime, '%Y-%m-%d-%H:%M:%S'):
-                        return False, '', '', ''
+                        return False, '', '', '', ''
                 except Exception as e:
                     logger.error(f"更新时间检查失败:{e}")
             else:
@@ -269,9 +271,9 @@ def checkupdate(is_frozen:bool) -> tuple[bool, str, str, str]:
             gxjs = data_['gxjs']
             if vnumber > ver:
                 logger.info(f"发现新版本 {vname}[{vnumber}]")
-                return True, up_index, vname, gxjs
+                return True, up_index, vname, gxjs, durl
             else:
                 logger.info("当前已是最新版本")
     except Exception as e:
         logger.warning(f"更新检查失败: {e}")
-    return False, '', '', ''
+    return False, '', '', '', ''

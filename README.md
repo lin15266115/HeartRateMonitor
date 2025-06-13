@@ -5,7 +5,8 @@
 [![视频](https://i1.hdslb.com/bfs/archive/3b60eb45c7b24938e62cdd3f3bc28e56ff5d8e2c.jpg@308w_174h)bilibili视频](https://www.bilibili.com/video/BV1VsEbzeE1N)
 
 ### 项目仓库：
-[github](https://github.com/lin15266115/HeartRateMonitor)
+[github](https://github.com/lin15266115/HeartRateMonitor) |
+[gitee](https://gitee.com/lin_1526615/HeartRateMonitor) |
 [gitcode](https://gitcode.com/lin15266115/HeartBeat)
 
 ## 运行程序

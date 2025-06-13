@@ -3,25 +3,50 @@ from PyQt5.QtWidgets import (
     QPushButton, QLabel, QWidget, QLineEdit,
     QSpinBox, QMessageBox, QCheckBox, QGroupBox,
     QSystemTrayIcon, QMenu, QSlider, QColorDialog)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 
+import time
+import threading
 import webbrowser
 
 from .fhrw import *
 from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
-from config_manager import try_except, ups, gs, start_update_program
+from .UpDownloadwin import DownloadWindow
+from config_manager import try_except, ups, gs, start_update_program, logger, checkupdate, is_frozen
 
 # 主窗口类
 class MainWindow(QMainWindow):
+    updata_window_show_ = pyqtSignal(str, str, str, bool, str)
     @try_except("主窗口初始化失败")
     def __init__(self, version):
         super().__init__()
         self.version = version
         self.setup_ui()
         self.setup_connections()
+        
+        self.updata_window_show_.connect(self.updata_window_show)
+
+        # 启动后台线程检查更新
+        if self.settings_ui._get_set("update_check", True, bool):
+            self.start_auto_update_check()
+
+    def start_auto_update_check(self):
+        """启动后台线程进行自动更新检查"""
+        def update_check_thread():
+            try:
+                # 检查更新
+                update_available, index, vname, gxjs, down_url = checkupdate()
+                if update_available:
+                    # 使用信号机制将结果显示到主线程
+                    self.updata_window_show_.emit(index, vname, gxjs, is_frozen, down_url)
+            except Exception as e:
+                logger.error(f"自动更新检查失败: {str(e)}")
+    
+        # 创建并启动线程
+        threading.Thread(target=update_check_thread, daemon=True).start()
         
     def setup_ui(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
@@ -101,32 +126,32 @@ class MainWindow(QMainWindow):
         self.float_ui.floating_window.close()
         QApplication.quit()
 
-    def updata_window_show(self, index, vname, gxjs, is_frozen):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle('提示')
-        msg_box.setText(f'版本-{vname} 已更新:\n {gxjs}')
-        msg_box.addButton("GitCode", QMessageBox.YesRole)
-        msg_box.addButton("Github", QMessageBox.YesRole)
-        btn_no = msg_box.addButton("取消", QMessageBox.NoRole)
-        msg_box.setDefaultButton(btn_no)
-        reply = msg_box.exec_()
+    def updata_window_show(self, index, vname, gxjs, is_frozen, down_url):
+        self.updmsg_box = QMessageBox(self)
+        logger.debug(f"开启了更新提示窗口(-1/-2)")
+        self.updmsg_box.setWindowTitle('提示')
+        self.updmsg_box.setText(f'版本-{vname} 已更新:\n {gxjs}')
+        self.updmsg_box.addButton("查看新版本", QMessageBox.YesRole)
+        btn_no = self.updmsg_box.addButton("取消", QMessageBox.NoRole)
+        self.updmsg_box.setDefaultButton(btn_no)
+        logger.debug(f"窗口正常加载 -1")
+        reply = self.updmsg_box.exec()
+        logger.debug(f"reply: {reply} -2")
         if reply == 0:
-            webbrowser.open(index)
-        elif reply == 1:
-            if is_frozen:
-                webbrowser.open("https://github.com/lin15266115/HeartRateMonitor/releases")
-            else:
-                webbrowser.open("https://github.com/lin15266115/HeartRateMonitor")
+            updwin = DownloadWindow(self)
+            updwin.set_url(down_url)
+            updwin.show()
 
 # 应用设置UI类
 class AppSettingsUI(QWidget):
     quit_application = pyqtSignal()
     show_settings = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.setup_ui()
         self.setup_tray_icon()
-        
+
     def setup_ui(self):
         pixmap = QPixmap()
         pixmap.loadFromData(heart_rate_png)
@@ -151,16 +176,16 @@ class AppSettingsUI(QWidget):
             ,lambda state: self._up_set("update_check", state==Qt.Checked)
         )
 
-        # 测试更新替换功能
-        update_layout = QHBoxLayout()
-        self.update_check = QPushButton("测试更新替换功能")
-        self.update_check.clicked.connect(self.update_test)
-        update_layout.addWidget(self.update_check)
-        settings_layout.addLayout(update_layout)
+        # 添加手动检查更新按钮
+        self.check_update_btn = QPushButton("手动检查更新(未实现)")
+        self.check_update_btn.clicked.connect(self.check_for_updates)
+        
+        settings_layout.addWidget(self.check_update_btn)
 
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         self.setLayout(layout)
+
 
     def setup_tray_icon(self):
         """设置系统托盘图标"""
@@ -207,17 +232,5 @@ class AppSettingsUI(QWidget):
 
     def _get_set(self, option: str, default, type_ = None):
         return gs('GUI', option, default, type_ , debugn="GUI")
-    
-    def update_test(self):
-        msg = QMessageBox()
-        msg.setText("测试更新替换功能(仅测试使用,请不要点击确定)")
-        msg.setInformativeText("是否重启应用更新？")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.No)
 
-        ret = msg.exec_()
-        if ret == QMessageBox.Yes:
-            start_update_program()
-        else:
-            pass
-
+    def check_for_updates(self):pass

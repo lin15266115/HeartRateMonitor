@@ -17,6 +17,7 @@ class DeviceConnectionUI(QVBoxLayout):
     status_changed = pyqtSignal(str)
     DEVICE_DATA_ROLE = Qt.UserRole + 1  # 自定义数据角色
 
+    @try_except("设备链接界面初始化")
     def __init__(self, status_label):
         super().__init__()
         self.ble_monitor = BLEHeartRateMonitor()

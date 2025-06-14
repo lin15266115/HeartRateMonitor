@@ -34,23 +34,23 @@ if is_frozen:
     __version__ = frozenvname
     ver = frozenver
 
-    # 如果是更新模式，直接处理更新并退出
+    # 更新模式
     if args.updatemode:
         logger.info("进入更新模式...")
         handle_update_mode()
 
-    # 如果是更新结束模式，清理更新文件后继续
+    # 更新结束模式
     if args.endup:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
     __version__ = '1.3.2-build'
-    ver = 1.00300200
+    ver = 1.00300201
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": ver
-            ,"gxjs": "本次更新本次更新新增了下载更新界面，并修复了部分bug"
+            ,"gxjs": "本次更新新增对不同dpi的适配, 和其它优化。"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
@@ -89,12 +89,17 @@ if __name__ == "__main__":
     app_id = 'Zerolinofe.HRMLink.Main.1'
     QtWin.setCurrentProcessExplicitAppUserModelID(app_id)
 
+    
+
     # 设置异步事件循环
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
     window = MainWindow(__version__)
     window.show()
+
+    screen = app.primaryScreen()
+    screen.logicalDotsPerInchChanged.connect(window.auto_FixedSize)
 
     def errwin(exc_type, exc_value):
         window.verylarge_error(f"{exc_type.__name__}: {exc_value}")

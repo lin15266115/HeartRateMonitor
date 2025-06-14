@@ -7,7 +7,7 @@ __all__ = ["FloatingHeartRateWindow", "FloatingWindowSettingUI"]
 
 class FloatingHeartRateWindow(QWidget):
     """浮动心率显示窗口"""
-    @try_except("浮窗初始化失败")
+    @try_except("浮窗初始化")
     def __init__(self, parent=None, ICON=None):
         """初始化浮动窗口"""
         logger.info("初始化浮动心率显示窗口")

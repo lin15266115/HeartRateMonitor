@@ -68,15 +68,18 @@ def add_errorfunc(func):
     errorfunc= func
 
 
-def try_except(errlogtext = "", func_ = None):
+def try_except(errlogname = "", func_ = None):
     """用于初始化错误处理的装饰器"""
     def try_(func):
         def main(*args, **kwargs):
             try:
-                return func(*args, **kwargs)
+                logger.info(f"{errlogname}开始")
+                anything = func(*args, **kwargs)
+                logger.info(f"{errlogname}完成")
+                return anything
             except Exception as e:
                 if func_ is not None: func_(e=e)
-                logger.error(f"{errlogtext}: {e}", exc_info=True)
+                logger.error(f"{errlogname}失败: {e}", exc_info=True)
         return main
     return try_
 

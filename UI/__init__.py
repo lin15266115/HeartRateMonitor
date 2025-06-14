@@ -3,14 +3,13 @@ from PyQt5.QtWidgets import (
     QPushButton, QLabel, QWidget, QLineEdit,
     QSpinBox, QMessageBox, QCheckBox, QGroupBox,
     QSystemTrayIcon, QMenu, QSlider, QColorDialog)
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtGui import QIcon, QPixmap
 
 import time
 import threading
-import webbrowser
 
-from .fhrw import *
+from .Floatingwin import *
 from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
@@ -20,7 +19,8 @@ from config_manager import try_except, ups, gs, start_update_program, logger, ch
 # 主窗口类
 class MainWindow(QMainWindow):
     updata_window_show_ = pyqtSignal(str, str, str, bool, str)
-    @try_except("主窗口初始化失败")
+    iserror = False
+    @try_except("主窗口初始化")
     def __init__(self, version):
         super().__init__()
         self.version = version
@@ -33,28 +33,37 @@ class MainWindow(QMainWindow):
         if self.settings_ui._get_set("update_check", True, bool):
             self.start_auto_update_check()
 
-    def start_auto_update_check(self):
-        """启动后台线程进行自动更新检查"""
-        def update_check_thread():
-            try:
-                # 检查更新
-                update_available, index, vname, gxjs, down_url = checkupdate()
-                if update_available:
-                    # 使用信号机制将结果显示到主线程
-                    self.updata_window_show_.emit(index, vname, gxjs, is_frozen, down_url)
-            except Exception as e:
-                logger.error(f"自动更新检查失败: {str(e)}")
-    
-        # 创建并启动线程
-        threading.Thread(target=update_check_thread, daemon=True).start()
-        
-    def setup_ui(self):
+    def auto_FixedSize(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
-        self.setFixedSize(700, 500)
+        # 获取逻辑DPI
+        app = QApplication.instance()
+        sc = self.screen()
+        x_ = sc.logicalDotsPerInchX()
+        y_ = sc.logicalDotsPerInchY()
+        def sfs(x_,y_):
+            self.logical_dpix = x_
+            self.logical_dpiy = y_
+            logger.info(f"逻辑DPI: {self.logical_dpix}x{self.logical_dpiy}")
+            x =  int(self.logical_dpix / 96 * 700)
+            y = int(self.logical_dpiy / 96 * 500)
+            self.setFixedSize(x, y)
+            # 应用字体大小
+            self.setStyleSheet("font-size: " + str(int(self.logical_dpiy / 96 * 12)) + "px;")
+
+        if not hasattr(self, "logical_dpix") or not hasattr(self, "logical_dpiy"):
+            sfs(x_,y_)
+        elif self.logical_dpix != x_ or self.logical_dpiy != y_:
+            sfs(x_,y_)
+
+    def setup_ui(self):
+
+        self.auto_FixedSize()
+
         # 状态栏
         self.status_label = QLabel("准备就绪")
         self.status_label.setAlignment(Qt.AlignCenter)
-        
+
+
         # 主布局
         main_widget = QWidget()
         main_layout = QVBoxLayout()
@@ -86,6 +95,7 @@ class MainWindow(QMainWindow):
         self.device_ui.status_changed.connect(self.status_label.setText)
         self.settings_ui.quit_application.connect(self.close_application)
         self.settings_ui.show_settings.connect(self.show_window)
+        self.settings_ui.updsig.connect(self.start_auto_update_check)
 
     def show_window(self):
         """显示设置窗口"""
@@ -116,7 +126,9 @@ class MainWindow(QMainWindow):
                 event.accept()
 
     def verylarge_error(self, error_message: str):
-        QMessageBox.critical(self, "严重错误", error_message, QMessageBox.Ok)
+        if not self.iserror:
+            self.iserror = True
+            QMessageBox.critical(self, "严重错误", error_message, QMessageBox.Ok)
         self.close_application()
 
     def close_application(self):
@@ -126,6 +138,21 @@ class MainWindow(QMainWindow):
         self.float_ui.floating_window.close()
         QApplication.quit()
 
+    def start_auto_update_check(self):
+        """启动后台线程进行自动更新检查"""
+        def update_check_thread():
+            try:
+                # 检查更新
+                update_available, index, vname, gxjs, down_url = checkupdate()
+                if update_available:
+                    # 使用信号机制将结果显示到主线程
+                    self.updata_window_show_.emit(index, vname, gxjs, is_frozen, down_url)
+            except Exception as e:
+                logger.error(f"自动更新检查失败: {str(e)}")
+    
+        # 创建并启动线程
+        threading.Thread(target=update_check_thread, daemon=True).start()
+
     def updata_window_show(self, index, vname, gxjs, is_frozen, down_url):
         self.updmsg_box = QMessageBox(self)
         logger.debug(f"开启了更新提示窗口(-1/-2)")
@@ -134,19 +161,21 @@ class MainWindow(QMainWindow):
         self.updmsg_box.addButton("查看新版本", QMessageBox.YesRole)
         btn_no = self.updmsg_box.addButton("取消", QMessageBox.NoRole)
         self.updmsg_box.setDefaultButton(btn_no)
-        logger.debug(f"窗口正常加载 -1")
+        logger.debug(f"窗口正常加载 (-1)")
         reply = self.updmsg_box.exec()
-        logger.debug(f"reply: {reply} -2")
+        logger.debug(f"reply: {reply} (-2)")
         if reply == 0:
-            updwin = DownloadWindow(self)
-            updwin.set_url(down_url)
-            updwin.show()
+            self.updwin = DownloadWindow(self)
+            self.updwin.set_url(down_url,index)
+            self.updwin.show()
 
 # 应用设置UI类
 class AppSettingsUI(QWidget):
     quit_application = pyqtSignal()
     show_settings = pyqtSignal()
+    updsig = pyqtSignal()
 
+    @try_except("设置UI初始化")
     def __init__(self):
         super().__init__()
         self.setup_ui()
@@ -177,8 +206,8 @@ class AppSettingsUI(QWidget):
         )
 
         # 添加手动检查更新按钮
-        self.check_update_btn = QPushButton("手动检查更新(未实现)")
-        self.check_update_btn.clicked.connect(self.check_for_updates)
+        self.check_update_btn = QPushButton("检查更新")
+        self.check_update_btn.clicked.connect(self.updsig.emit)
         
         settings_layout.addWidget(self.check_update_btn)
 
@@ -232,5 +261,3 @@ class AppSettingsUI(QWidget):
 
     def _get_set(self, option: str, default, type_ = None):
         return gs('GUI', option, default, type_ , debugn="GUI")
-
-    def check_for_updates(self):pass

@@ -17,7 +17,7 @@ class FloatingHeartRateWindow(QWidget):
         self.text_base = self._get_set('text_base', "心率: {rate}", str)
         self.bg_color = QColor(0, 0, 0)
         self.bg_opacity = self._get_set('bg_opacity', 50, int)
-        self.font_size = self._get_set('font_size', 30, int)
+        self.font_size = self._get_set('font-size', 30, int)
         self.padding = self._get_set('padding', 10, int)
         self.bg_brightness = self._get_set('bg_brightness', 200, int)
         self.register_as_window = self._get_set('register_as_window', False, bool)
@@ -202,7 +202,6 @@ class FloatingWindowSettingUI(QWidget):
     def __init__(self):
         super().__init__()
         self.floating_window = FloatingHeartRateWindow()  # 创建浮动窗口实例
-        self.save_ = {"bg_opacity": False, "bg_brightness": False}
         self.setup_ui()
 
     def setup_ui(self):

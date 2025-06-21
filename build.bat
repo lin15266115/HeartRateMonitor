@@ -1,1 +1,1 @@
-pyinstaller HRMLink.spec --clean --distpath=./dist/v1.3.2-alpha
+pyinstaller HRMLink.spec --clean --distpath=./dist/v1.3.3-alpha

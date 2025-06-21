@@ -1,15 +1,14 @@
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QWidget, QLineEdit,
-    QSpinBox, QMessageBox, QCheckBox, QGroupBox,
-    QSystemTrayIcon, QMenu, QSlider, QColorDialog)
-from PyQt5.QtCore import Qt, pyqtSignal, QEvent
-from PyQt5.QtGui import QIcon, QPixmap
+    QPushButton, QLabel, QWidget,
+    QMessageBox, QGroupBox,
+    QSystemTrayIcon, QMenu)
+from PyQt5.QtCore import Qt, pyqtSignal
 
 import time
 import threading
 
-from .Floatingwin import *
+from .Floatingwin_old import *
 from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
@@ -78,7 +77,7 @@ class MainWindow(QMainWindow):
         self.float_ui = FloatingWindowSettingUI()
         self.settings_ui = AppSettingsUI()
 
-        self.setWindowIcon(self.settings_ui.app_icon)
+        self.setWindowIcon(get_icon())
 
         right_layout = QVBoxLayout()
         right_layout.addWidget(self.float_ui, 2)
@@ -182,9 +181,7 @@ class AppSettingsUI(QWidget):
         self.setup_tray_icon()
 
     def setup_ui(self):
-        pixmap = QPixmap()
-        pixmap.loadFromData(heart_rate_png)
-        self.app_icon = QIcon(pixmap)
+        self.app_icon = get_icon()
 
         layout = QVBoxLayout()
         
@@ -222,7 +219,7 @@ class AppSettingsUI(QWidget):
         if QSystemTrayIcon.isSystemTrayAvailable():
 
             self.tray_icon = QSystemTrayIcon(self)
-            self.tray_icon.setIcon(self.app_icon)
+            self.tray_icon.setIcon(get_icon())
 
             tray_menu = QMenu()
 

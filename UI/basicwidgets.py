@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QSlider, QHBoxLayout, QCheckBox, QBoxLayout
+from PyQt5.QtWidgets import QSlider, QCheckBox, QBoxLayout
 
 class Slider_(QSlider):
     def __init__(self, initial_value, value_changed_callback, Range = (0, 255)):

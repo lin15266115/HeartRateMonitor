@@ -3,8 +3,8 @@ import json
 import asyncio
 import argparse
 
-frozenvname = "v1.3.2-alpha"
-frozenver = 1.003002
+frozenvname = "v1.3.3-alpha"
+frozenver = 1.003003
 
 import config_manager
 config_manager.is_frozen = is_frozen = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
@@ -44,18 +44,18 @@ if is_frozen:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
-    __version__ = '1.3.2-build'
-    ver = 1.00300202
+    __version__ = '1.3.3.0'
+    ver = 1.00300300
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": ver
-            ,"gxjs": "本次更新修改了编译文档, 修改了图片格式"
+            ,"gxjs": "本次更新修改和优化了应用图标相关的逻辑。"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
-                ,"updateTime": "2025-06-17-12:00:00"
-                ,"gxjs": "本次更新新增了下载更新和检查更新功能, 优化不同dpi的设备显示效果, 修复已知问题"
+                ,"updateTime": "2025-06-21-12:00:00"
+                ,"gxjs": "本次更新修改和优化了应用图标相关的逻辑。"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{frozenvname}/HRMLink.exe"
             }

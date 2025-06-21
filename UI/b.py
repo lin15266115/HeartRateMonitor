@@ -8,4 +8,14 @@ if  __name__ == '__main__':
             g.write("\n")
             g.write("heart_rate_png = bytes.fromhex(img)")
             g.write("\n")
-            g.write("__all__ = ['heart_rate_png']")
+            g.write("""from PyQt5.QtGui import QIcon, QPixmap
+def get_icon():
+    global HR_ICON
+    if 'HR_ICON' in globals():
+        pixmap = QPixmap()
+        pixmap.loadFromData(heart_rate_png)
+        HR_ICON = QIcon(pixmap)
+    return HR_ICON
+__all__ = ['get_icon']
+"""
+            )

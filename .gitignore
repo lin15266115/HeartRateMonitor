@@ -1,7 +1,7 @@
 __pycache__
-build/
-dist/
-log/
 _oldfiles/
+_build/
+_nuitka/
+_dist/
+log/
 config.ini
-nuitka/

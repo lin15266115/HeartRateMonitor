@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QDialog, QProgressBar,
                              QPushButton, QVBoxLayout, QHBoxLayout, QLabel)
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from config_manager import logger, start_update_program, try_except
+from system_utils import logger, start_update_program, try_except
 
 class DownloadThread(QThread):
     progress_signal = pyqtSignal(int)

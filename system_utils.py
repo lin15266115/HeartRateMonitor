@@ -7,8 +7,12 @@ import datetime
 import urllib.request
 from typing import Any
 
-ver:float = 100
-is_frozen = None
+VER:float = 100
+IS_FROZEN = None
+
+# --------日志处理--------
+
+class AppisRunning(Exception):pass
 
 def getlogger():
     global logger
@@ -21,7 +25,10 @@ def getlogger():
     if os.path.exists('log/loger1.log'):
         if os.path.exists('log/loger2.log'):
             os.remove('log/loger2.log')
-        os.rename('log/loger1.log', 'log/loger2.log')
+        try:
+            os.rename('log/loger1.log', 'log/loger2.log')
+        except Exception:
+            raise AppisRunning('程序正在运行!')
 
     handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
     handler.setLevel(logging.DEBUG)
@@ -46,6 +53,8 @@ def upmod_logger():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+# --------错误输出处理函数--------
 
 errorfunc = None
 
@@ -73,15 +82,18 @@ def try_except(errlogname = "", func_ = None):
     def try_(func):
         def main(*args, **kwargs):
             try:
-                logger.info(f"{errlogname}开始")
+                logger.info(f"{errlogname} 开始")
                 anything = func(*args, **kwargs)
-                logger.info(f"{errlogname}完成")
+                logger.info(f"{errlogname} 完成")
                 return anything
             except Exception as e:
                 if func_ is not None: func_(e=e)
-                logger.error(f"{errlogname}失败: {e}", exc_info=True)
+                logger.error(f"严重错误: {errlogname} 失败: {e}", exc_info=True)
+                sys.exit(1)
         return main
     return try_
+
+# --------配置文件操作--------
 
 from configparser import ConfigParser
 
@@ -110,10 +122,10 @@ def check_sections():
             s_ = True
     if s_: save_settings()
 
-@try_except("修改配置失败")
+@try_except("修改配置")
 def update_settings(**kwargs: SETTINGTYPE):
     global config
-    logger.info(f"修改配置: {kwargs}")
+    logger.info(f"{kwargs}")
     for section in kwargs.keys():
         if not config.has_section(section):
             config.add_section(section)
@@ -126,6 +138,25 @@ def save_settings():
     global config
     with open(config_file, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
+
+def gs(section, option, default, type_:type = None, debugn = ""):
+    if type_ == bool:
+        data = config.getboolean(section, option, fallback=default)
+    else :
+        data = config.get(section, option, fallback=default)
+    logger.debug(f' [{debugn}] -获取配置项 {option} 的值: {data}')
+    if data is None or data == "None":
+        return default
+    if type_ is None:
+        return data
+    else:return type_(data)
+
+def ups(section, option: str, value, debugn = ""):
+    config.set(section, option, str(value))
+    logger.debug(f'[{debugn}] 更新配置项 {option} 的值: {value}')
+    save_settings()
+
+# --------下载前置--------
 
 def pip_install_models(import_models_func: callable, pip_modelname: str):
     try:
@@ -155,23 +186,55 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
     except Exception as e:
         logger.error(f"无法导入模块: {e}")
 
+# --------启动项--------
 
-def gs(section, option, default, type_:type = None, debugn = ""):
-    if type_ == bool:
-        data = config.getboolean(section, option, fallback=default)
-    else :
-        data = config.get(section, option, fallback=default)
-    logger.debug(f' [{debugn}] -获取配置项 {option} 的值: {data}')
-    if data is None or data == "None":
-        return default
-    if type_ is None:
-        return data
-    else:return type_(data)
+import winreg as reg
 
-def ups(section, option: str, value, debugn = ""):
-    config.set(section, option, str(value))
-    logger.debug(f'[{debugn}] 更新配置项 {option} 的值: {value}')
-    save_settings()
+def add_to_startup():
+    # 获取当前可执行文件路径
+    if IS_FROZEN:
+        # 如果是打包后的exe
+        value = sys.executable
+    else:
+        # 如果是脚本
+        # 获取当前可执行文件目录
+        b_ = os.path.dirname(os.path.abspath(sys.argv[0]))
+        value = os.path.join(b_, "start.bat")
+
+    logger.info("正在添加到启动项...")
+    print(value)
+
+    # 应用的名称
+    app_name = "Zero_linofe-HRMlink"
+    
+    # 打开注册表中的启动项键
+    key = reg.HKEY_CURRENT_USER
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    
+    try:
+        registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
+        reg.SetValueEx(registry_key, app_name, 0, reg.REG_SZ, value)
+        reg.CloseKey(registry_key)
+        return True
+    except WindowsError:
+        logger.error("添加到启动项失败", exc_info=True)
+        return False
+
+def remove_from_startup():
+    app_name = "Zero_linofe-HRMlink"
+    key = reg.HKEY_CURRENT_USER
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+    try:
+        registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
+        reg.DeleteValue(registry_key, app_name)
+        reg.CloseKey(registry_key)
+        return True
+    except WindowsError:
+        logger.error("无法从注册表中删除启动项", exc_info=True)
+        return False
+
+# --------应用更新--------
 
 # 处理更新模式
 def handle_update_mode():
@@ -257,7 +320,7 @@ def checkupdate() -> tuple[bool, str, str, str, str]:
             
             durl = data['frozen']['download']
 
-            if is_frozen:
+            if IS_FROZEN:
                 data_ = data['frozen']
                 up_index = data_['index']
                 updatetime = data_['updateTime']
@@ -272,7 +335,7 @@ def checkupdate() -> tuple[bool, str, str, str, str]:
             vnumber = data_['version']
             vname = data_['name']
             gxjs = data_['gxjs']
-            if vnumber > ver:
+            if vnumber > VER:
                 logger.info(f"发现新版本 {vname}[{vnumber}]")
                 return True, up_index, vname, gxjs, durl
             else:

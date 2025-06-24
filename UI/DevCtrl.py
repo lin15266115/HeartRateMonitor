@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QLabel
     ,QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QListWidget
     ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
-from config_manager import logger, try_except
+from system_utils import logger, try_except
 from Blegetheartbeat import BLEHeartRateMonitor
 
 import asyncio

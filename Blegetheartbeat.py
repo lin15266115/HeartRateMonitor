@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict
-from config_manager import *
+from system_utils import pip_install_models
 import datetime
 
 def import_models():

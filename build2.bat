@@ -4,7 +4,7 @@ python -m nuitka ^
   --include-package=winrt ^
   --onefile --standalone ^
   --windows-console-mode=disable ^
-  --output-dir=nuitka/v1.3.1 ^
+  --output-dir=_nuitka/v1.3.1 ^
   --remove-output ^
   --lto=no ^
   --jobs=6 ^

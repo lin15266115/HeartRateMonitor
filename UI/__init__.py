@@ -8,12 +8,13 @@ from PyQt5.QtCore import Qt, pyqtSignal
 import time
 import threading
 
-from .Floatingwin_old import *
 from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import DownloadWindow
-from config_manager import try_except, ups, gs, start_update_program, logger, checkupdate, is_frozen
+from system_utils import IS_FROZEN, VER, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup
+
+from .Floatingwin_old import *
 
 # 主窗口类
 class MainWindow(QMainWindow):
@@ -145,7 +146,7 @@ class MainWindow(QMainWindow):
                 update_available, index, vname, gxjs, down_url = checkupdate()
                 if update_available:
                     # 使用信号机制将结果显示到主线程
-                    self.updata_window_show_.emit(index, vname, gxjs, is_frozen, down_url)
+                    self.updata_window_show_.emit(index, vname, gxjs, IS_FROZEN, down_url)
             except Exception as e:
                 logger.error(f"自动更新检查失败: {str(e)}")
     
@@ -193,6 +194,13 @@ class AppSettingsUI(QWidget):
             ,settings_layout
             ,self._get_set("tray_icon", True, bool)
             ,self.toggle_tray_icon
+        )
+
+        CheackBox_(
+             "开机自启动"
+             ,settings_layout
+             ,self._get_set("startup", False, bool)
+             ,self.toggle_startup
         )
 
         CheackBox_(
@@ -252,6 +260,18 @@ class AppSettingsUI(QWidget):
             else:
                 self.tray_icon.hide()
                 self._up_set('tray_icon', False)
+    
+    def toggle_startup(self, state):
+        """切换开机启动"""
+        if state == Qt.Checked:
+            if not IS_FROZEN:
+                # 弹窗提示
+                QMessageBox.information(self, "提示", "当前为脚本运行模式, 要添加启动项, 请确保已经修改 \"start.bat\" 中pythonw.exe的位置", QMessageBox.Ok)
+            add_to_startup()
+            self._up_set('startup', True)
+        else:
+            remove_from_startup()
+            self._up_set('startup', False)
 
     def _up_set(self, option: str, value):
         ups('GUI', option, value, debugn="GUI")

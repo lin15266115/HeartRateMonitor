@@ -5,11 +5,12 @@ import argparse
 
 frozenvname = "v1.3.3-alpha"
 frozenver = 1.003003
+VER2 = (1, 3, 3, 1)
 
-import config_manager
-config_manager.is_frozen = is_frozen = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
+import system_utils
+system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 
-from config_manager import (
+from system_utils import (
      getlogger, upmod_logger, add_errorfunc, handle_exception
     ,init_config, pip_install_models
     ,handle_update_mode,handle_end_update
@@ -30,9 +31,9 @@ else:
 # 设置全局异常钩子
 sys.excepthook = handle_exception
 
-if is_frozen:
+if IS_FROZEN:
     __version__ = frozenvname
-    ver = frozenver
+    VER = frozenver
 
     # 更新模式
     if args.updatemode:
@@ -44,27 +45,28 @@ if is_frozen:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
-    __version__ = '1.3.3.0'
-    ver = 1.00300300
+    __version__ = '1.3.3.1'
+    VER = 1.00300301
+    VER2 = (1, 3, 3, 1)
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
-            ,"version": ver
-            ,"gxjs": "本次更新修改和优化了应用图标相关的逻辑。"
+            ,"version": VER
+            ,"gxjs": "本次更新新增开机自启功能，以及一些优化"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
                 ,"updateTime": "2025-06-21-12:00:00"
-                ,"gxjs": "本次更新修改和优化了应用图标相关的逻辑。"
+                ,"gxjs": "本次更新新增开机自启功能，修改和优化了应用图标相关的逻辑等。"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{frozenvname}/HRMLink.exe"
             }
         }
         json.dump(sdata, f, ensure_ascii=False, indent=2)
 
-config_manager.ver = ver
+system_utils.VER = VER
 
-logger.info(f"运行程序 -{__version__}[{ver}]" + " ".join(argv for argv in sys.argv if argv))
+logger.info(f"运行程序 -{__version__}[{VER}]" + " ".join(argv for argv in sys.argv if argv))
 logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 init_config()
@@ -88,8 +90,6 @@ if __name__ == "__main__":
 
     app_id = 'Zerolinofe.HRMLink.Main.1'
     QtWin.setCurrentProcessExplicitAppUserModelID(app_id)
-
-    
 
     # 设置异步事件循环
     loop = QEventLoop(app)

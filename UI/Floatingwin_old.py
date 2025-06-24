@@ -3,7 +3,7 @@ from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor
 from .basicwidgets import *
 from .heartratepng import *
-from config_manager import logger, try_except, ups, gs, update_settings
+from system_utils import logger, try_except, ups, gs, update_settings
 __all__ = ["FloatingHeartRateWindow", "FloatingWindowSettingUI"]
 
 class FloatingHeartRateWindow(QWidget):
@@ -55,9 +55,8 @@ class FloatingHeartRateWindow(QWidget):
         if self.register_as_window:
             # 注册为常规窗口，OBS可以捕获
             self.setWindowFlags(
-                 Qt.WindowStaysOnTopHint 
-                |Qt.FramelessWindowHint 
-                |Qt.WindowTitleHint
+                 Qt.WindowStaysOnTopHint
+                |Qt.FramelessWindowHint
             )
         else:
             # 默认的浮动窗口模式
@@ -194,6 +193,9 @@ class FloatingHeartRateWindow(QWidget):
 
     def _up_xy(self):
         update_settings(FloatingWindow={'x': self.x(), 'y': self.y()})
+
+    def closeEvent(self, a0):
+        a0.ignore()
         
 class FloatingWindowSettingUI(QWidget):
     """浮动窗口设置界面类"""

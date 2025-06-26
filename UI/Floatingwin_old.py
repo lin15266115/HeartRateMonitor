@@ -11,7 +11,6 @@ class FloatingHeartRateWindow(QWidget):
     @try_except("浮窗初始化")
     def __init__(self, parent=None):
         """初始化浮动窗口"""
-        logger.info("初始化浮动心率显示窗口")
         super().__init__(parent)
 
         self.text_color = QColor(self._get_set("text_color", 4292502628, int))
@@ -29,7 +28,6 @@ class FloatingHeartRateWindow(QWidget):
         y = self._get_set('y', "default")
         if not (x == "default" or y == "default"):
             self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
-        logger.info("浮窗初始化完成")
 
     def setup_ui(self):
         """设置UI布局和组件"""

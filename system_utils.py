@@ -114,7 +114,7 @@ def init_config():
         logger.error(f"无法加载配置文件: {e}", exc_info=True)
 
 def check_sections():
-    sectionlist = ['GUI', 'FloatingWindow']
+    sectionlist = ['GUI', 'FloatingWindow', 'Device']
     s_ = False
     for section in sectionlist:
         if not config.has_section(section):

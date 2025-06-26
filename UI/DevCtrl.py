@@ -2,9 +2,12 @@ from PyQt5.QtWidgets import (QVBoxLayout, QLabel
     ,QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QListWidget
     ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
-from system_utils import logger, try_except
+
+from .basicwidgets import CheackBox_
+from system_utils import logger, try_except, ups, gs
 from Blegetheartbeat import BLEHeartRateMonitor
 
+import json
 import asyncio
 import datetime
 
@@ -26,10 +29,14 @@ class DeviceConnectionUI(QVBoxLayout):
         self.linking = False
         self.quit_ = False
         self.be_timeout = False
-        self.selected_device = None  # 存储选择的设备信息
+        self.selected_device = self._get_set("last_selected_device", None, json.loads)
+        self.auto_connect_last = self._get_set("auto_connect", False, bool)
         self.setup_ui()
         # 扫描一次设备
         self.scan_devices()
+
+        if self.auto_connect_last:
+            self.connect_device()
 
     def setup_ui(self):
 
@@ -40,27 +47,29 @@ class DeviceConnectionUI(QVBoxLayout):
         btn_layout = QHBoxLayout()
         self.refresh_button = QPushButton("刷新")
         self.refresh_button.clicked.connect(self.scan_devices)
-
-        arf_layout = QHBoxLayout()
-        auto_refresh_Label = QLabel("自动刷新")
-        self.auto_refresh_button = QCheckBox()
-        self.auto_refresh_button.stateChanged.connect(self.auto_scan)
-        self.auto_refresh_button.setChecked(True)
-        arf_layout.addWidget(auto_refresh_Label)
-        arf_layout.addWidget(self.auto_refresh_button)
-
-        # 过滤无名设备
-        fe_layout = QHBoxLayout()
-        filter_empty_Label = QLabel("过滤无名设备")
-        self.filter_empty_button = QCheckBox()
-        self.filter_empty_button.stateChanged.connect(self.filter_empty)
-        self.filter_empty_button.setChecked(True)
-        fe_layout.addWidget(filter_empty_Label)
-        fe_layout.addWidget(self.filter_empty_button)
-
         btn_layout.addWidget(self.refresh_button)
-        btn_layout.addLayout(arf_layout)
-        btn_layout.addLayout(fe_layout)
+
+        CheackBox_(
+            "自动刷新"
+            ,btn_layout
+            ,True
+            ,self.auto_scan
+        )
+
+        CheackBox_(
+            "过滤无名设备"
+            ,btn_layout
+            ,True
+            ,self.filter_empty
+        )
+
+        CheackBox_(
+            "启动时自动连接"
+            ,btn_layout
+            ,self.auto_connect_last
+            ,self.check_auto_connect
+        )
+
         scan_layout.addLayout(btn_layout)
 
         self.device_list = QListWidget()
@@ -152,6 +161,8 @@ class DeviceConnectionUI(QVBoxLayout):
             "name": device_text.split(" (")[0].strip(),
             "address": device_text[device_text.find("(")+1:device_text.find(")")]
         }
+
+        self._up_set("last_selected_device", json.dumps(self.selected_device))
         
         # 添加"[已选择]"标记并更新显示
         marked_text = f"[已选择]{device_text}"
@@ -318,3 +329,19 @@ class DeviceConnectionUI(QVBoxLayout):
             self.heart_rate_updated.emit(-1)
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)
+
+    def check_auto_connect(self, state):
+        if state == Qt.Checked:
+            self.auto_connect_last = True
+            self._up_set(option="auto_connect", value=True)
+        else:
+            self.auto_connect_last = False
+            self._up_set(option="auto_connect", value=False)
+
+    def _get_set(self, option: str, default, type_=None):
+        """获取设置项"""
+        return gs('Device', option, default, type_, "浮窗")
+
+    def _up_set(self, option: str, value):
+        """更新设置项"""
+        ups('Device', option, value, "浮窗")

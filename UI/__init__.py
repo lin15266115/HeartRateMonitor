@@ -36,7 +36,6 @@ class MainWindow(QMainWindow):
     def auto_FixedSize(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
         # 获取逻辑DPI
-        app = QApplication.instance()
         sc = self.screen()
         x_ = sc.logicalDotsPerInchX()
         y_ = sc.logicalDotsPerInchY()
@@ -81,8 +80,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(get_icon())
 
         right_layout = QVBoxLayout()
-        right_layout.addWidget(self.float_ui, 2)
-        right_layout.addWidget(self.settings_ui, 1)
+        right_layout.addWidget(self.float_ui, 5)
+        right_layout.addWidget(self.settings_ui, 3)
 
         setting_layout.addLayout(self.device_ui, stretch=2)
         setting_layout.addLayout(right_layout, stretch=1)
@@ -206,7 +205,7 @@ class AppSettingsUI(QWidget):
         CheackBox_(
              "启动时检查更新"
             ,settings_layout
-            ,self._get_set("update_check", True, bool)
+            ,self._get_set("update_check", False, bool)
             ,lambda state: self._up_set("update_check", state==Qt.Checked)
         )
 

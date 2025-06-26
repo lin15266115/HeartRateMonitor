@@ -5,7 +5,7 @@ import argparse
 
 frozenvname = "v1.3.3-alpha"
 frozenver = 1.003003
-VER2 = (1, 3, 3, 1)
+VER2 = (1, 3, 3, 2)
 
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
@@ -45,19 +45,18 @@ if IS_FROZEN:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
-    __version__ = '1.3.3.1'
-    VER = 1.00300301
-    VER2 = (1, 3, 3, 1)
+    __version__ = '1.3.3.2'
+    VER = 1.00300302
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": VER
-            ,"gxjs": "本次更新新增开机自启功能，以及一些优化"
+            ,"gxjs": "本次更新新增保存和启动时自动连接上次选择设备，以及一些优化"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
-                ,"updateTime": "2025-06-21-12:00:00"
-                ,"gxjs": "本次更新新增开机自启功能，修改和优化了应用图标相关的逻辑等。"
+                ,"updateTime": "2025-06-25-12:00:00"
+                ,"gxjs": "本次更新新增开机自启和启动时自动连接设备功能，以及一些优化"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{frozenvname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{frozenvname}/HRMLink.exe"
             }

@@ -62,6 +62,15 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
+    elif isinstance(exc_type, ModuleNotFoundError):
+        logger.warning("缺少模块: %s", exc_type.name)
+        logger.error(
+            "模块导入错误: \n",
+            exc_info=(exc_type, exc_value, exc_traceback)
+        )
+        if errorfunc:
+            errorfunc(exc_type, exc_value)
+        pip_install_package(exc_type.name)
     logger.error(
         "严重错误: \n",
         exc_info=(exc_type, exc_value, exc_traceback)
@@ -163,28 +172,29 @@ def pip_install_models(import_models_func: callable, pip_modelname: str):
         import_models_func()
     except ModuleNotFoundError as e:
         logger.warning(f"缺少依赖包 {e.name}")
-        # 检查是否是编译版本
-        if getattr(sys, 'frozen', False):
+        if IS_FROZEN:
             logger.error("编译时错误: 请确保编译时已安装所有依赖包")
             sys.exit(1)
         else:
-            # 尝试下载依赖包
-            python_exe = sys.executable
-            logger.info(f"正在尝试下载依赖包到{python_exe}")
-            try:
-                try:
-                    os.system(f"{python_exe} -m pip install {pip_modelname}")
-                except Exception as e:
-                    logger.error(f"下载依赖包 {pip_modelname} 失败: {e}")
-                    logger.warning(f"尝试使用阿里云镜像源下载依赖包 {pip_modelname}")
-                    os.system(f"{python_exe} -m pip install {pip_modelname} -i https://mirrors.aliyun.com/pypi/simple/")
-                logger.info(f"已安装依赖包: {pip_modelname}")
-                import_models_func()
-            except Exception as e:
-                logger.error(f"依赖包安装失败: {e}", exc_info=True)
-                sys.exit(1)
+            pip_install_package(pip_modelname)
     except Exception as e:
         logger.error(f"无法导入模块: {e}")
+
+def pip_install_package(package_name: str):
+    # 尝试下载依赖包
+    python_exe = sys.executable
+    logger.info(f"正在尝试下载依赖包到: {python_exe}")
+    try:
+        try:
+            os.system(f"{python_exe} -m pip install {package_name}")
+        except Exception as e:
+            logger.error(f"下载依赖包 {package_name} 失败: {e}")
+            logger.warning(f"尝试使用阿里云镜像源下载依赖包 {package_name}")
+            os.system(f"{python_exe} -m pip install {package_name} -i https://mirrors.aliyun.com/pypi/simple/")
+        logger.info(f"已安装依赖包: {package_name}")
+    except Exception as e:
+        logger.error(f"依赖包安装失败: {e}", exc_info=True)
+        sys.exit(1)
 
 # --------启动项--------
 
@@ -194,15 +204,15 @@ def add_to_startup():
     # 获取当前可执行文件路径
     if IS_FROZEN:
         # 如果是打包后的exe
-        value = sys.executable
+        # 获取当前可执行文件路径
+        value = os.path.abspath(sys.executable)
     else:
         # 如果是脚本
         # 获取当前可执行文件目录
         b_ = os.path.dirname(os.path.abspath(sys.argv[0]))
         value = os.path.join(b_, "start.bat")
 
-    logger.info("正在添加到启动项...")
-    print(value)
+    logger.info(f"正在添加到启动项 {value}")
 
     # 应用的名称
     app_name = "Zero_linofe-HRMlink"
@@ -210,10 +220,10 @@ def add_to_startup():
     # 打开注册表中的启动项键
     key = reg.HKEY_CURRENT_USER
     key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-    
+
     try:
         registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
-        reg.SetValueEx(registry_key, app_name, 0, reg.REG_SZ, value)
+        reg.SetValueEx(registry_key, app_name, 0, reg.REG_SZ, rf'"{value}"')
         reg.CloseKey(registry_key)
         return True
     except WindowsError:

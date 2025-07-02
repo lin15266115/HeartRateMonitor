@@ -1,13 +1,6 @@
 from typing import List, Optional, Dict
-from system_utils import pip_install_models
 import datetime
-
-def import_models():
-    """导入依赖库"""
-    global BleakScanner, BleakClient
-    from bleak import BleakScanner, BleakClient
-
-pip_install_models(import_models, "bleak")
+from bleak import BleakScanner, BleakClient
 
 # 心率服务UUID
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"

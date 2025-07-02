@@ -4,8 +4,8 @@ import asyncio
 import argparse
 
 frozenvname = "v1.3.3-alpha"
-frozenver = 1.003003
-VER2 = (1, 3, 3, 2)
+VER2 = (1, 3, 3, 3)
+frozenver = 1.003003 # VER2[0] + VER2[1] * 0.001 + VER2[2] * 0.000001
 
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
@@ -45,13 +45,13 @@ if IS_FROZEN:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
-    __version__ = '1.3.3.2'
-    VER = 1.00300302
+    __version__ = '.'.join(map(str, VER2))
+    VER = VER2[0] + VER2[1] * 0.001 + VER2[2] * 0.000001 + VER2[3] * 0.00000001
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
             ,"version": VER
-            ,"gxjs": "本次更新新增保存和启动时自动连接上次选择设备，以及一些优化"
+            ,"gxjs": "本次更新优化了一些问题"
             ,"frozen":{
                  "name":  frozenvname
                 ,"version": frozenver
@@ -79,8 +79,12 @@ def import_qasync():
     global QEventLoop
     from qasync import QEventLoop
 
+def import_models():
+    import bleak
+
 pip_install_models(import_pyqt5, "pyqt5")
 pip_install_models(import_qasync, "qasync")
+pip_install_models(import_models, "bleak")
 
 from UI import MainWindow
 

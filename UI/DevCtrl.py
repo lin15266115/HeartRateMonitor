@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QLabel
     ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
 
+from bleak.exc import BleakDeviceNotFoundError
 from .basicwidgets import CheackBox_
 from system_utils import logger, try_except, ups, gs
 from Blegetheartbeat import BLEHeartRateMonitor
@@ -34,6 +35,11 @@ class DeviceConnectionUI(QVBoxLayout):
         self.setup_ui()
         # 扫描一次设备
         self.scan_devices()
+
+        self.scan_timer = QTimer()
+        self.scan_timer.timeout.connect(self.scan_devices)
+        self.scan_timer.start(10000)
+
 
         if self.auto_connect_last:
             self.connect_device()
@@ -222,11 +228,7 @@ class DeviceConnectionUI(QVBoxLayout):
 
     def auto_scan(self, state):
         """启停自动扫描设备"""
-        if not hasattr(self, "scan_timer"):
-            self.scan_timer = QTimer()
-            self.scan_timer.timeout.connect(self.scan_devices)
-
-        if state:
+        if state == Qt.Checked:
             self.scan_timer.start(10000)
         else:
             self.scan_timer.stop()
@@ -258,7 +260,9 @@ class DeviceConnectionUI(QVBoxLayout):
                 logger.info(f"自动断开时间 {duration} 秒(0表示不自动断开)")
                 if duration > 0:
                     QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
-
+        except BleakDeviceNotFoundError:
+            self.status_label.setText(f"未找到设备 {device_name}")
+            logger.error(f"未找到设备 {device_name}")
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")

@@ -65,14 +65,14 @@ class DownloadThread(QThread):
         self._is_running = False
         self.wait()
 
-class DownloadWindow(QDialog):
+class UpdWindow(QDialog):
     url = ""
     gitcodeurl = None
     githuburl = "https://github.com/lin15266115/HeartRateMonitor"
     @try_except("下载窗口初始化")
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("文件下载器")
+        self.setWindowTitle("新版本更新")
         self.setGeometry(100, 100, 400, 150)
         
         # 创建UI元素

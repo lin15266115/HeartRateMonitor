@@ -11,14 +11,14 @@ import threading
 from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
-from .UpDownloadwin import DownloadWindow
+from .UpDownloadwin import UpdWindow as DownloadWindow
 from system_utils import IS_FROZEN, VER, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup
 
 from .Floatingwin_old import *
 
 # 主窗口类
 class MainWindow(QMainWindow):
-    updata_window_show_ = pyqtSignal(str, str, str, bool, str)
+    updata_window_show_ = pyqtSignal(str, str, str, str)
     iserror = False
     @try_except("主窗口初始化")
     def __init__(self, version):
@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
 
         # 启动后台线程检查更新
         if self.settings_ui._get_set("update_check", True, bool):
-            self.start_auto_update_check()
+            self.start_update_check()
 
     def auto_FixedSize(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
@@ -92,9 +92,9 @@ class MainWindow(QMainWindow):
         # 连接各模块之间的信号和槽
         self.device_ui.heart_rate_updated.connect(self.float_ui.update_heart_rate)
         self.device_ui.status_changed.connect(self.status_label.setText)
-        self.settings_ui.quit_application.connect(self.close_application)
+        self.settings_ui.quit_application.connect(self.check_device_status_before_close)
         self.settings_ui.show_settings.connect(self.show_window)
-        self.settings_ui.updsig.connect(self.start_auto_update_check)
+        self.settings_ui.updsig.connect(self.start_update_check)
 
     def show_window(self):
         """显示设置窗口"""
@@ -108,21 +108,32 @@ class MainWindow(QMainWindow):
             self.hide()
             event.ignore()
         else:
-            # 否则正常退出
-            if self.device_ui.ble_monitor.client and self.device_ui.ble_monitor.client.is_connected:
-                reply = QMessageBox.question(
-                    self, '确认',
-                    "当前已连接设备，确定要退出吗?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            self.check_device_status_before_close(event)
+    # 检查设备连接状态后执行退出逻辑
+    def check_device_status_before_close(self, event = None):
+        if event:
+            def e_accept():event.accept()
+            def e_ignore():event.ignore()
+        else:
+            e_accept = lambda: None
+            e_ignore = lambda: None
 
-                if reply == QMessageBox.Yes:
-                    self.close_application()
-                    event.accept()
-                else:
-                    event.ignore()
-            else:
+        # 否则正常退出
+        if self.device_ui.ble_monitor.client and self.device_ui.ble_monitor.client.is_connected:
+            reply = QMessageBox.question(
+                self, '确认',
+                "当前已连接设备，确定要退出吗?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
                 self.close_application()
-                event.accept()
+                e_accept()
+            else:
+                e_ignore()
+        else:
+            self.close_application()
+            e_accept()
+
 
     def verylarge_error(self, error_message: str):
         if not self.iserror:
@@ -137,7 +148,7 @@ class MainWindow(QMainWindow):
         self.float_ui.floating_window.close()
         QApplication.quit()
 
-    def start_auto_update_check(self):
+    def start_update_check(self):
         """启动后台线程进行自动更新检查"""
         def update_check_thread():
             try:
@@ -145,14 +156,14 @@ class MainWindow(QMainWindow):
                 update_available, index, vname, gxjs, down_url = checkupdate()
                 if update_available:
                     # 使用信号机制将结果显示到主线程
-                    self.updata_window_show_.emit(index, vname, gxjs, IS_FROZEN, down_url)
+                    self.updata_window_show_.emit(index, vname, gxjs, down_url)
             except Exception as e:
                 logger.error(f"自动更新检查失败: {str(e)}")
     
         # 创建并启动线程
         threading.Thread(target=update_check_thread, daemon=True).start()
 
-    def updata_window_show(self, index, vname, gxjs, is_frozen, down_url):
+    def updata_window_show(self, index, vname, gxjs, down_url):
         self.updmsg_box = QMessageBox(self)
         logger.debug(f"开启了更新提示窗口(-1/-2)")
         self.updmsg_box.setWindowTitle('提示')
@@ -195,7 +206,7 @@ class AppSettingsUI(QWidget):
             ,self.toggle_tray_icon
         )
 
-        CheackBox_(
+        self.set_starup = CheackBox_(
              "开机自启动"
              ,settings_layout
              ,self._get_set("startup", False, bool)
@@ -263,11 +274,15 @@ class AppSettingsUI(QWidget):
     def toggle_startup(self, state):
         """切换开机启动"""
         if state == Qt.Checked:
-            if not IS_FROZEN:
-                # 弹窗提示
-                QMessageBox.information(self, "提示", "当前为脚本运行模式, 要添加启动项, 请确保已经修改 \"start.bat\" 中pythonw.exe的位置", QMessageBox.Ok)
-            add_to_startup()
-            self._up_set('startup', True)
+            output = add_to_startup()
+            if output == "成功":
+                self._up_set('startup', True)
+            elif output == "脚本":
+                QMessageBox.information(self, "提示", "测试启动脚本 start.bat 不通过, 请用文本编辑器打开并修改 PYTHONPATH 项为python目录", QMessageBox.Ok)
+                self.set_starup.setChecked(False)
+            elif output == "启动项":
+                QMessageBox.information(self, "错误", "添加启动项失败", QMessageBox.Ok)
+                self.set_starup.setChecked(False)
         else:
             remove_from_startup()
             self._up_set('startup', False)

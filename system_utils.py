@@ -4,10 +4,12 @@ import json
 import shutil
 import logging
 import datetime
+import subprocess
 import urllib.request
 from typing import Any
 
-VER:float = 100
+VER:float
+VER2:tuple[int,int,int,int]
 IS_FROZEN = None
 
 # --------日志处理--------
@@ -196,9 +198,19 @@ def pip_install_package(package_name: str):
         logger.error(f"依赖包安装失败: {e}", exc_info=True)
         sys.exit(1)
 
-# --------启动项--------
+# --------启动管理--------
 
 import winreg as reg
+
+def check_startbat(path):
+    "检查启动脚本"
+    try:
+        result = subprocess.run([path, "--startup"], capture_output=True, timeout=5)
+        logger.info(f"启动脚本: {result.stdout.decode()}")
+        return True
+    except Exception as e:
+        logger.error(f"启动项检查失败: {e}", exc_info=True)
+        return False
 
 def add_to_startup():
     # 获取当前可执行文件路径
@@ -211,6 +223,9 @@ def add_to_startup():
         # 获取当前可执行文件目录
         b_ = os.path.dirname(os.path.abspath(sys.argv[0]))
         value = os.path.join(b_, "start.bat")
+        # 测试启动脚本是否正确运行
+        if not check_startbat(value):
+            return "脚本"
 
     logger.info(f"正在添加到启动项 {value}")
 
@@ -225,10 +240,10 @@ def add_to_startup():
         registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
         reg.SetValueEx(registry_key, app_name, 0, reg.REG_SZ, rf'"{value}"')
         reg.CloseKey(registry_key)
-        return True
+        return "成功"
     except WindowsError:
         logger.error("添加到启动项失败", exc_info=True)
-        return False
+        return "启动项"
 
 def remove_from_startup():
     app_name = "Zero_linofe-HRMlink"

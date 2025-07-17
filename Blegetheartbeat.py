@@ -2,10 +2,19 @@ from typing import List, Optional, Dict
 import datetime
 from bleak import BleakScanner, BleakClient
 
+from importlib.metadata import version
 # 心率服务UUID
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
 # 心率测量特征UUID
 HEART_RATE_MEASUREMENT_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
+
+if tuple(map(int,version("bleak").split('.'))) < (1, 0, 0):
+    async def check_service(client: BleakClient):
+        services = await client.get_services()
+        return HEART_RATE_SERVICE_UUID in [ser.uuid for ser in services]
+else:
+    async def check_service(client: BleakClient):
+        return any(ser.uuid == HEART_RATE_SERVICE_UUID for ser in client.services)
 
 class BLEHeartRateMonitor:
     """BLE连接和心率数据处理类"""
@@ -43,8 +52,7 @@ class BLEHeartRateMonitor:
         """
         self.client = BleakClient(device_address)
         await self.client.connect()
-        services = await self.client.get_services()
-        if HEART_RATE_SERVICE_UUID in [ser.uuid for ser in services]:
+        if await check_service(self.client):
             # 启用心率通知
             await self.client.start_notify(
                 HEART_RATE_MEASUREMENT_UUID,

@@ -5,10 +5,10 @@ import shutil
 import logging
 import datetime
 import subprocess
+import urllib.error
 import urllib.request
 from typing import Any
 
-VER:float
 VER2:tuple[int,int,int,int]
 IS_FROZEN = None
 
@@ -73,6 +73,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         if errorfunc:
             errorfunc(exc_type, exc_value)
         pip_install_package(exc_type.name)
+
     logger.error(
         "严重错误: \n",
         exc_info=(exc_type, exc_value, exc_traceback)
@@ -206,7 +207,7 @@ def check_startbat(path):
     "检查启动脚本"
     try:
         result = subprocess.run([path, "--startup"], capture_output=True, timeout=5)
-        logger.info(f"启动脚本: {result.stdout.decode()}")
+        logger.info(f"启动脚本: {result.stdout.decode('utf-8', errors='ignore')}")
         return True
     except Exception as e:
         logger.error(f"启动项检查失败: {e}", exc_info=True)
@@ -353,18 +354,20 @@ def checkupdate() -> tuple[bool, str, str, str, str]:
                     if datetime.datetime.now() < datetime.datetime.strptime(updatetime, '%Y-%m-%d-%H:%M:%S'):
                         return False, '', '', '', ''
                 except Exception as e:
-                    logger.error(f"更新时间检查失败:{e}")
+                    logger.error(f"更新时间检查失败: 更新时间读取失败({updatetime})")
             else:
                 data_ = data
                 up_index = 'https://gitcode.com/lin15266115/HeartBeat'
-            vnumber = data_['version']
+            VER2_VER = data_['VER2']
             vname = data_['name']
             gxjs = data_['gxjs']
-            if vnumber > VER:
-                logger.info(f"发现新版本 {vname}[{vnumber}]")
+            if VER2_VER > [v for v in VER2]:
+                logger.info(f"发现新版本 {vname}[{'.'.join(map(str, VER2_VER))}]")
                 return True, up_index, vname, gxjs, durl
             else:
                 logger.info("当前已是最新版本")
+    except urllib.error.URLError as e:
+        logger.warning(f"更新检查失败(URL不可达): {e}")
     except Exception as e:
-        logger.warning(f"更新检查失败: {e}")
+        logger.error(f"更新检查失败(未标识的错误): {e}", exc_info=True)
     return False, '', '', '', ''

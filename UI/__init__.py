@@ -12,7 +12,7 @@ from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import UpdWindow as DownloadWindow
-from system_utils import IS_FROZEN, VER, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup
+from system_utils import IS_FROZEN, VER2, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup
 
 from .Floatingwin_old import *
 
@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.updata_window_show_.connect(self.updata_window_show)
 
         # 启动后台线程检查更新
-        if self.settings_ui._get_set("update_check", True, bool):
+        if self.settings_ui._get_set("update_check", False, bool):
             self.start_update_check()
 
     def auto_FixedSize(self):
@@ -101,22 +101,21 @@ class MainWindow(QMainWindow):
         self.show()
         self.activateWindow()
 
-    def closeEvent(self, event):
+    def closeEvent(self, a0):
         """窗口关闭事件"""
-        if self.settings_ui.tray_icon and self.settings_ui.tray_icon.isVisible():
-            # 如果启用了托盘图标，则隐藏窗口而不是退出
+        if self.settings_ui._get_set("use_bg", False, bool):
+            # 如果允许后台运行，则隐藏窗口
             self.hide()
-            event.ignore()
+            a0.ignore()
         else:
-            self.check_device_status_before_close(event)
+            self.check_device_status_before_close(a0)
     # 检查设备连接状态后执行退出逻辑
     def check_device_status_before_close(self, event = None):
         if event:
             def e_accept():event.accept()
             def e_ignore():event.ignore()
         else:
-            e_accept = lambda: None
-            e_ignore = lambda: None
+            e_accept = e_ignore = lambda: None
 
         # 否则正常退出
         if self.device_ui.ble_monitor.client and self.device_ui.ble_monitor.client.is_connected:
@@ -200,10 +199,10 @@ class AppSettingsUI(QWidget):
         settings_layout = QVBoxLayout()
         
         CheackBox_(
-             "启用托盘图标"
+             "允许后台运行"
             ,settings_layout
             ,self._get_set("tray_icon", True, bool)
-            ,self.toggle_tray_icon
+            ,self.toggle_use_bg
         )
 
         self.set_starup = CheackBox_(
@@ -251,8 +250,7 @@ class AppSettingsUI(QWidget):
             quit_action.triggered.connect(self.quit_application.emit)
 
             self.tray_icon.setContextMenu(tray_menu)
-            if self._get_set('tray_icon', True, bool):
-                self.tray_icon.show()
+            self.tray_icon.show()
             self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
     def on_tray_icon_activated(self, reason):
@@ -261,15 +259,12 @@ class AppSettingsUI(QWidget):
             # 显示托盘菜单
             self.tray_icon.contextMenu().popup(self.tray_icon.geometry().center())
 
-    def toggle_tray_icon(self, state):
-        """切换托盘图标显示"""
-        if self.tray_icon:
-            if state == Qt.Checked:
-                self.tray_icon.show()
-                self._up_set('tray_icon', True)
-            else:
-                self.tray_icon.hide()
-                self._up_set('tray_icon', False)
+    def toggle_use_bg(self, state):
+        """切换允许后台运行"""
+        if state == Qt.Checked:
+            self._up_set('use_bg', True)
+        else:
+            self._up_set('use_bg', False)
     
     def toggle_startup(self, state):
         """切换开机启动"""

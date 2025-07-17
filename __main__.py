@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 3, 4)
+VER2 = (1, 3, 3, 5)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha"
 
 import system_utils
@@ -37,7 +37,6 @@ sys.excepthook = handle_exception
 
 if IS_FROZEN:
     __version__ = vname
-    VER = 1.00300304
 
     # 更新模式
     if args.updatemode:
@@ -50,26 +49,24 @@ if IS_FROZEN:
         handle_end_update()
 else:
     __version__ = 't' + '.'.join(map(str, VER2))
-    VER = 1.00300304
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
              "name": __version__
-            ,"version": VER
+            ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "代码运行模式的开机自启动检查功能和一些优化"
+            ,"gxjs": "优化版本更新检查功能和优化后台运行功能等"
             ,"frozen":{
                  "name":  vname
-                ,"version": VER
+                ,"version": 2
                 ,"VER2": VER2
-                ,"updateTime": "2025-06-25-12:00:00"
-                ,"gxjs": "本次更新新增开机自启和启动时自动连接设备功能，以及一些优化"
+                ,"updateTime": "2025-7-17-15:00:00"
+                ,"gxjs": "本次更新新增开机自启和启动时自动连接设备功能，以及一系列优化"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
             }
         }
         json.dump(sdata, f, ensure_ascii=False, indent=2)
 
-system_utils.VER = 1.00300304 
 system_utils.VER2 = VER2
 
 logger.info(f"运行程序 -{__version__}" + " ".join(argv for argv in sys.argv if argv))
@@ -92,6 +89,9 @@ def import_models():
 pip_install_models(import_pyqt5, "pyqt5")
 pip_install_models(import_qasync, "qasync")
 pip_install_models(import_models, "bleak")
+
+from importlib.metadata import version
+logger.info(f"pyqt5({version('PyQt5')}); qasync({version('qasync')}); bleak({version('bleak')})")
 
 from UI import MainWindow
 import ctypes

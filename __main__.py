@@ -3,8 +3,8 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 3, 5)
-vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha"
+VER2 = (1, 3, 4, 0)
+vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
@@ -54,7 +54,7 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "优化版本更新检查功能和优化后台运行功能等"
+            ,"gxjs": "修复 允许后台运行 设置项显示错误问题"
             ,"frozen":{
                  "name":  vname
                 ,"version": 2

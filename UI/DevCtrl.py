@@ -19,7 +19,7 @@ __all__ = ["DeviceConnectionUI"]
 class DeviceConnectionUI(QVBoxLayout):
     heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)
-    DEVICE_DATA_ROLE = Qt.UserRole + 1  # 自定义数据角色
+    DEVICE_DATA_ROLE = Qt.UserRole + 1
 
     @try_except("设备链接界面初始化")
     def __init__(self, status_label):

@@ -201,7 +201,7 @@ class AppSettingsUI(QWidget):
         CheackBox_(
              "允许后台运行"
             ,settings_layout
-            ,self._get_set("tray_icon", True, bool)
+            ,self._get_set("use_bg", False, bool)
             ,self.toggle_use_bg
         )
 

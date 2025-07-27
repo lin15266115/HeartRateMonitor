@@ -88,7 +88,6 @@ def add_errorfunc(func):
     global errorfunc
     errorfunc= func
 
-
 def try_except(errlogname = "", func_ = None):
     """用于初始化错误处理的装饰器"""
     def try_(func):

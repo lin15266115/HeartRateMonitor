@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 4, 0)
+VER2 = (1, 3, 4, 1)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils
@@ -19,11 +19,11 @@ from system_utils import (
 parser = argparse.ArgumentParser()
 parser.add_argument('-updatemode', action='store_true', help='更新模式标志')
 parser.add_argument('-endup', action='store_true', help='更新结束标志')
-parser.add_argument('-testMode', action='store_true', help='用于测试应用能否通过start.bat脚本正常启动')
+parser.add_argument('-startup', action='store_true', help='用于测试应用能否通过start.bat脚本正常启动')
 args = parser.parse_args()
 
-if args.testMode:
-    print("成功! Success!")
+if args.startup:
+    print("Success!")
     sys.exit(0)
 
 # 如果是更新模式，使用简单日志输出
@@ -54,7 +54,7 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "修复 允许后台运行 设置项显示错误问题"
+            ,"gxjs": "优化启动项管理以及其它优化"
             ,"frozen":{
                  "name":  vname
                 ,"version": 2

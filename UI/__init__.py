@@ -12,7 +12,7 @@ from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import UpdWindow as DownloadWindow
-from system_utils import IS_FROZEN, VER2, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup
+from system_utils import IS_FROZEN, VER2, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
 
 from .Floatingwin_old import *
 
@@ -32,6 +32,8 @@ class MainWindow(QMainWindow):
         # 启动后台线程检查更新
         if self.settings_ui._get_set("update_check", False, bool):
             self.start_update_check()
+        
+        self.settings_ui.check_startup()
 
     def auto_FixedSize(self):
         self.setWindowTitle(f"心率监测设置 -[{self.version}]")
@@ -189,6 +191,29 @@ class AppSettingsUI(QWidget):
         super().__init__()
         self.setup_ui()
         self.setup_tray_icon()
+    
+    def check_startup(self):
+        Csup1, Csup2 = check_startup()
+        print(Csup1, end=", ")
+        print(Csup2)
+        if Csup2 != "":
+            logger.debug("[GUI] 检查到启动项")
+            if Csup1: 
+                self._up_set('startup', True)
+                self.set_starup.setChecked(True)
+            else:
+                re = QMessageBox.warning(self, "提示", f"启动项被其它应用程序占用,是否覆盖?\n相关启动项位置: {Csup2}", QMessageBox.Yes | QMessageBox.No)
+                if re == QMessageBox.Yes:
+                    add_to_startup()
+                    self._up_set('startup', True)
+                    self.set_starup.setChecked(True)
+                else:
+                    self._up_set('startup', False)
+                    self.set_starup.setChecked(False)
+        else:
+            logger.debug("[GUI] 未检查到启动项")
+            self._up_set('startup', False)
+            self.set_starup.setChecked(False)
 
     def setup_ui(self):
         self.app_icon = get_icon()

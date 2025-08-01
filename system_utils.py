@@ -35,7 +35,7 @@ def getlogger():
     handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
     handler.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
@@ -51,7 +51,7 @@ def upmod_logger():
     handler = logging.FileHandler('log/uplog.log', 'a', encoding='utf-8')
     handler.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
@@ -201,13 +201,16 @@ def pip_install_package(package_name: str):
 # --------启动管理--------
 
 import winreg as reg
+APPNAME = "Zero_linofe-HRMlink"
+KEYPATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 def check_startbat(path):
     "检查启动脚本"
     try:
-        result = subprocess.run([path, "--startup"], capture_output=True, timeout=5)
+        result = subprocess.run([path, "-startup"], capture_output=True, timeout=5)
         logger.info(f"启动脚本: {result.stdout.decode('utf-8', errors='ignore')}")
-        return True
+        if "Success!" in result.stdout.decode('utf-8', errors='ignore'): logger.debug("启动脚本通过检查");return True
+        else: logger.warning("启动脚本检查不通过");return False
     except Exception as e:
         logger.error(f"启动项检查失败: {e}", exc_info=True)
         return False
@@ -216,11 +219,9 @@ def add_to_startup():
     # 获取当前可执行文件路径
     if IS_FROZEN:
         # 如果是打包后的exe
-        # 获取当前可执行文件路径
         value = os.path.abspath(sys.executable)
     else:
         # 如果是脚本
-        # 获取当前可执行文件目录
         b_ = os.path.dirname(os.path.abspath(sys.argv[0]))
         value = os.path.join(b_, "start.bat")
         # 测试启动脚本是否正确运行
@@ -228,17 +229,13 @@ def add_to_startup():
             return "脚本"
 
     logger.info(f"正在添加到启动项 {value}")
-
-    # 应用的名称
-    app_name = "Zero_linofe-HRMlink"
     
     # 打开注册表中的启动项键
     key = reg.HKEY_CURRENT_USER
-    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
     try:
-        registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
-        reg.SetValueEx(registry_key, app_name, 0, reg.REG_SZ, rf'"{value}"')
+        registry_key = reg.OpenKey(key, KEYPATH, 0, reg.KEY_WRITE)
+        reg.SetValueEx(registry_key, APPNAME, 0, reg.REG_SZ, rf'"{value}"')
         reg.CloseKey(registry_key)
         return "成功"
     except WindowsError:
@@ -246,18 +243,38 @@ def add_to_startup():
         return "启动项"
 
 def remove_from_startup():
-    app_name = "Zero_linofe-HRMlink"
     key = reg.HKEY_CURRENT_USER
-    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
     try:
-        registry_key = reg.OpenKey(key, key_path, 0, reg.KEY_WRITE)
-        reg.DeleteValue(registry_key, app_name)
+        registry_key = reg.OpenKey(key, KEYPATH, 0, reg.KEY_WRITE)
+        reg.DeleteValue(registry_key, APPNAME)
         reg.CloseKey(registry_key)
         return True
     except WindowsError:
         logger.error("无法从注册表中删除启动项", exc_info=True)
         return False
+    
+def check_startup():
+    # 检查启动项状态
+    key = reg.HKEY_CURRENT_USER
+    if IS_FROZEN:
+        # 如果是打包后的exe
+        value = os.path.abspath(sys.executable)
+    else:
+        # 如果是脚本
+        b_ = os.path.dirname(os.path.abspath(sys.argv[0]))
+        value = os.path.join(b_, "start.bat")
+
+    try:
+        with reg.OpenKey(key, KEYPATH) as registry_key:
+            value_, regtype = reg.QueryValueEx(registry_key, APPNAME)
+            return (value_ == rf'"{value}"'), value_
+    except FileNotFoundError:
+        logger.warning("[启动项] 键不存在")
+        return False, ""
+    except WindowsError:
+        logger.warning("[启动项] ", exc_info=True)
+        return False, ""
 
 # --------应用更新--------
 

@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 4, 1)
+VER2 = (1, 3, 4, 2)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils
@@ -12,7 +12,7 @@ system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sy
 from system_utils import (
      getlogger, upmod_logger, add_errorfunc, handle_exception
     ,init_config, pip_install_models
-    ,handle_update_mode,handle_end_update
+    ,handle_update_mode,handle_end_update, try_except
 )
 
 # 解析命令行参数
@@ -54,18 +54,23 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "优化启动项管理以及其它优化"
+            ,"gxjs": "日志记录更详细的依赖信息和其它优化"
             ,"frozen":{
                  "name":  vname
                 ,"version": 2
                 ,"VER2": VER2
-                ,"updateTime": "2025-7-17-15:00:00"
-                ,"gxjs": "本次更新新增开机自启和启动时自动连接设备功能，以及一系列优化"
+                ,"updateTime": "2025-8-25-15:00:00"
+                ,"gxjs": "本次更新优化了启动项管理和修复一些问题"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
             }
         }
         json.dump(sdata, f, ensure_ascii=False, indent=2)
+    try:
+        import importlib
+        buildbatmain = importlib.import_module("build_bat").main
+        buildbatmain(VER2)
+    except Exception: pass
 
 system_utils.VER2 = VER2
 
@@ -90,11 +95,43 @@ pip_install_models(import_pyqt5, "pyqt5")
 pip_install_models(import_qasync, "qasync")
 pip_install_models(import_models, "bleak")
 
-from importlib.metadata import version
-logger.info(f"pyqt5({version('PyQt5')}); qasync({version('qasync')}); bleak({version('bleak')})")
+from importlib.metadata import metadata as get_metadata, distributions, distribution, Distribution
+packages: list[dict[str, str|int]] = []
+packages.append({"nameandversion": "包名 == 版本号", "len": 10, "license":"开源许可证", "name":""})
+for entry in distributions():
+    nameandversion = f"{entry.name} == {entry.version}"
+    packages.append({"name": entry.name, "nameandversion": nameandversion, "len": len(nameandversion)})
+
+def add_pak(name:Distribution):
+    @try_except(f"手动获取依赖包名{name}", exit_ = False, exc_info=False)
+    def add_pak_():
+        NaVer = f"{name.name} == {name.version}"
+        packages.append({"name": name.name, "nameandversion": NaVer, "len": len(NaVer)})
+    if name.name not in [x["name"] for x in packages]:
+        add_pak_()
+
+def get_license(name:str):
+    try:
+        return get_metadata(name).get('License')
+    except Exception as e:
+        logger.warning(f"无法获取依赖包 {name} 的授权信息: {e}")
+        return "Unknown"
+
+# pyinstaller编译的应用必须直接使用`distribution`函数获取模块信息, 否则会报错
+deta = [
+     distribution('bleak'),distribution('pyinstaller'),distribution('PyQt5'),distribution('PyQt5-Qt5'),distribution('PyQt5_sip')
+    ,distribution('qasync'),distribution('winrt-runtime')
+]
+[add_pak(d_) for d_ in deta]
+
+max_len = max(map(lambda x: x["len"], packages))
+
+packageslogtext = "\n  ".join(map(lambda x: f"{x["nameandversion"]:<{max_len+2}}-{get_metadata(x["name"]).get('License') if "license" not in x else x["license"]}", packages))
+
+logger.info("[项目依赖包清单:\n  "+packageslogtext + "\n]")
 
 from UI import MainWindow
-import ctypes
+import ctypes 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

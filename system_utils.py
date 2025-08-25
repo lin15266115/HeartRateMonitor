@@ -88,19 +88,21 @@ def add_errorfunc(func):
     global errorfunc
     errorfunc= func
 
-def try_except(errlogname = "", func_ = None):
+def try_except(errlogname = "", func_ = None, exit_ = True, exc_info = True):
     """用于初始化错误处理的装饰器"""
     def try_(func):
         def main(*args, **kwargs):
             try:
-                logger.info(f"{errlogname} 开始")
+                if exc_info:
+                    logger.info(f"{errlogname} 开始")
                 anything = func(*args, **kwargs)
                 logger.info(f"{errlogname} 完成")
                 return anything
             except Exception as e:
                 if func_ is not None: func_(e=e)
-                logger.error(f"严重错误: {errlogname} 失败: {e}", exc_info=True)
-                sys.exit(1)
+                logger.error(f"{"严重" if exit_ else ""}错误: {errlogname} 失败: {e}", exc_info=exc_info)
+                if exit_:
+                    sys.exit(1)
         return main
     return try_
 

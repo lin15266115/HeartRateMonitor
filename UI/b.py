@@ -11,7 +11,7 @@ if  __name__ == '__main__':
             g.write("""from PyQt5.QtGui import QIcon, QPixmap
 def get_icon():
     global HR_ICON
-    if 'HR_ICON' in globals():
+    if not 'HR_ICON' in globals():
         pixmap = QPixmap()
         pixmap.loadFromData(heart_rate_png)
         HR_ICON = QIcon(pixmap)

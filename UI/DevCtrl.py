@@ -31,7 +31,7 @@ class DeviceConnectionUI(QVBoxLayout):
         self.quit_ = False
         self.be_timeout = False
         self.selected_device = self._get_set("last_selected_device", None, json.loads)
-        self.auto_connect_last = self._get_set("auto_connect", False, bool)
+        self.auto_connect = self._get_set("auto_connect", False, bool)
         self.setup_ui()
         # 扫描一次设备
         self.scan_devices()
@@ -39,10 +39,6 @@ class DeviceConnectionUI(QVBoxLayout):
         self.scan_timer = QTimer()
         self.scan_timer.timeout.connect(self.scan_devices)
         self.scan_timer.start(10000)
-
-
-        if self.auto_connect_last:
-            self.connect_device()
 
     def setup_ui(self):
 
@@ -63,17 +59,17 @@ class DeviceConnectionUI(QVBoxLayout):
         )
 
         CheackBox_(
+            "自动连接"
+            ,btn_layout
+            ,self.auto_connect
+            ,self.check_auto_connect
+        )
+
+        CheackBox_(
             "过滤无名设备"
             ,btn_layout
             ,True
             ,self.filter_empty
-        )
-
-        CheackBox_(
-            "启动时自动连接"
-            ,btn_layout
-            ,self.auto_connect_last
-            ,self.check_auto_connect
         )
 
         scan_layout.addLayout(btn_layout)
@@ -202,6 +198,9 @@ class DeviceConnectionUI(QVBoxLayout):
                         "name": device.name,
                         "address": device.address
                     }
+                    # 如果开启了自动连接，则尝试连接
+                    if self.auto_connect:
+                        await self.__use_for_auto_connect()
 
                 self.device_list.addItem(item)
 
@@ -225,6 +224,11 @@ class DeviceConnectionUI(QVBoxLayout):
         except Exception as e:
             self.device_list_status.setText(f"扫描错误: {str(e)}")
             logger.error(f"扫描BLE设备错误: {e}", exc_info=True)
+
+    async def __use_for_auto_connect(self):
+        """自动连接"""
+        if self.auto_connect:
+            await self.connect_device()
 
     def auto_scan(self, state):
         """启停自动扫描设备"""
@@ -336,10 +340,10 @@ class DeviceConnectionUI(QVBoxLayout):
 
     def check_auto_connect(self, state):
         if state == Qt.Checked:
-            self.auto_connect_last = True
+            self.auto_connect = True
             self._up_set(option="auto_connect", value=True)
         else:
-            self.auto_connect_last = False
+            self.auto_connect = False
             self._up_set(option="auto_connect", value=False)
 
     def _get_set(self, option: str, default, type_=None):

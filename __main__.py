@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 4, 2)
+VER2 = (1, 3, 5, 0)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils

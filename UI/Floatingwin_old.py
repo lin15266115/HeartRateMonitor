@@ -227,11 +227,14 @@ class FloatingWindowSettingUI(QWidget):
         color_layout = QHBoxLayout()
         self.text_color_button = QPushButton("文字颜色")
         self.text_color_button.clicked.connect(self.set_text_color)
+        self.text_color_button.setCursor(Qt.PointingHandCursor)
 
         # 颜色预览标签
         self.text_color_preview = QLabel()
         self.text_color_preview.setFixedSize(20, 20)
         self.text_color_preview.setStyleSheet(f"background-color: {self.floating_window.text_color.name()}; border: 1px solid black;")
+        self.text_color_preview.mousePressEvent = lambda e: self.text_color_button.click()
+        self.text_color_preview.setCursor(Qt.PointingHandCursor)
 
         color_layout.addWidget(QLabel("文字颜色:"))
         color_layout.addWidget(self.text_color_button)

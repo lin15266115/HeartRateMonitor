@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QLabel
     ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
 
-from bleak.exc import BleakDeviceNotFoundError
+from bleak.exc import BleakDeviceNotFoundError, BleakError
 from .basicwidgets import CheackBox_
 from system_utils import logger, try_except, ups, gs
 from Blegetheartbeat import BLEHeartRateMonitor
@@ -30,6 +30,7 @@ class DeviceConnectionUI(QVBoxLayout):
         self.linking = False
         self.quit_ = False
         self.be_timeout = False
+        self.usedevlist = True
         self.selected_device = self._get_set("last_selected_device", None, json.loads)
         self.auto_connect = self._get_set("auto_connect", False, bool)
         self.setup_ui()
@@ -141,12 +142,12 @@ class DeviceConnectionUI(QVBoxLayout):
         self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
         self.heart_rate_updated.emit(heart_rate)
 
-    
     def filter_empty(self, state):
             self.ble_monitor.filter_empty = state
 
     def on_device_selected(self, item):
         """处理设备选择事件"""
+        if not self.usedevlist: return
         # 清除之前选择的标记
         for i in range(self.device_list.count()):
             list_item = self.device_list.item(i)
@@ -156,7 +157,7 @@ class DeviceConnectionUI(QVBoxLayout):
                 original_text = list_item.data(self.DEVICE_DATA_ROLE)
                 if original_text:
                     list_item.setText(original_text)
-        
+
         # 存储当前选择的设备信息
         device_text = item.text()
         self.selected_device = {
@@ -165,11 +166,11 @@ class DeviceConnectionUI(QVBoxLayout):
         }
 
         self._up_set("last_selected_device", json.dumps(self.selected_device))
-        
+
         # 添加"[已选择]"标记并更新显示
         marked_text = f"[已选择]{device_text}"
         item.setText(marked_text)
-        
+
         # 保存原始文本到用户数据
         item.setData(self.DEVICE_DATA_ROLE, device_text)
 
@@ -177,8 +178,9 @@ class DeviceConnectionUI(QVBoxLayout):
     async def scan_devices(self):
         """扫描BLE设备"""
         # 保存当前选择状态
+        if not self.usedevlist: return
         current_address = self.selected_device["address"] if self.selected_device else None
-        
+
         self.device_list_status.setText("正在扫描设备...")
 
         try:
@@ -199,7 +201,7 @@ class DeviceConnectionUI(QVBoxLayout):
                         "address": device.address
                     }
                     # 如果开启了自动连接，则尝试连接
-                    if self.auto_connect:
+                    if self.auto_connect and self.usedevlist:
                         await self.__use_for_auto_connect()
 
                 self.device_list.addItem(item)
@@ -210,7 +212,7 @@ class DeviceConnectionUI(QVBoxLayout):
             print(e.winerror)
             if e.winerror == -2147020577:
                 self.device_list_status.setText("请打开蓝牙")
-                logger.debug("蓝牙未开启")
+                logger.warning("蓝牙未开启")
                 errortxt = "蓝牙未开启，请打开蓝牙"
             else:
                 self.device_list_status.setText(f"未知错误: {e.winerror}")
@@ -267,6 +269,22 @@ class DeviceConnectionUI(QVBoxLayout):
         except BleakDeviceNotFoundError:
             self.status_label.setText(f"未找到设备 {device_name}")
             logger.error(f"未找到设备 {device_name}")
+        except BleakError as e:
+            if "Could not get GATT services: Unreachable" in str(e):
+                self.status_label.setText(f"设备GATT服务不可用, 请尝试重新启动设备心率广播功能")
+            else:
+                self.status_label.setText(f"连接错误: {str(e)}")
+            self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+            logger.error(f"连接设备时出错: {e}", exc_info=True)
+        except OSError as e:
+            if e.winerror == -2147023673:
+                self.status_label.setText(f"链接请求被中断({e.winerror})")
+                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+                logger.warning(f"连接设备时出错: {e}")
+            else:
+                self.status_label.setText(f"连接错误: {str(e)}")
+                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 链接错误: {str(e)}")
+                logger.error(f"连接设备时出错: {e}", exc_info=True)
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
@@ -286,6 +304,7 @@ class DeviceConnectionUI(QVBoxLayout):
         if success:
             self.be_timeout = False
             self.status_label.setText("已断开连接")
+            self.set_devicelist_use(True)
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
             logger.info("已断开连接")
 
@@ -330,13 +349,26 @@ class DeviceConnectionUI(QVBoxLayout):
             self.be_timeout = True
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
+            self.set_devicelist_use(False)
         else:
             if self.be_timeout:
                 self.status_label.setText("链接被断开")
                 self.be_timeout = False
+                self.set_devicelist_use(True)
             self.heart_rate_updated.emit(-1)
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)
+
+    def set_devicelist_use(self, checked):
+        if checked:
+            self.device_list_status.setStyleSheet("color: green;")
+            self.device_list.setEnabled(True)
+            self.usedevlist = True
+        else:
+            self.device_list_status.setText("已禁用")
+            self.device_list_status.setStyleSheet("color: red;")
+            self.device_list.setEnabled(False)
+            self.usedevlist = False
 
     def check_auto_connect(self, state):
         if state == Qt.Checked:

@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 5, 1)
+VER2 = (1, 3, 5, 2)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils
@@ -54,7 +54,7 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "增强文字颜色设置功能"
+            ,"gxjs": "链接设备后禁用设备列表控制和刷新等"
             ,"frozen":{
                  "name":  vname
                 ,"version": 2

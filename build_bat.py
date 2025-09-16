@@ -55,7 +55,7 @@ def main(VER2):
   --lto=no ^
   --company-name="Zero_linofe" ^
   --product-name="HRMLink" ^
-  --file-version={".".join(map(str, VER2))} ^
+     --file-version={".".join(map(str, VER2))} ^
   --product-version={".".join(map(str, VER2))} ^
   --file-description="通过低功耗蓝牙协议获取心率并显示 | Compiled using Nuitka" ^
   --copyright="Copyright (C) 2025 Zero_linofe | GPL-3.0 License" ^

@@ -3,7 +3,7 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 5, 2)
+VER2 = (1, 3, 5, 3)
 vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
 
 import system_utils
@@ -54,13 +54,13 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "链接设备后禁用设备列表控制和刷新等"
+            ,"gxjs": "订正一个拼写错误的变量名"
             ,"frozen":{
                  "name":  vname
                 ,"version": 2
                 ,"VER2": VER2
-                ,"updateTime": "2025-8-25-15:00:00"
-                ,"gxjs": "本次更新优化了启动项管理和修复一些问题"
+                ,"updateTime": "2025-9-16-12:00:00"
+                ,"gxjs": "本次更新将启动时自动连接更改为自动连接设备,优化了界面操作逻辑"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
             }
@@ -118,11 +118,11 @@ def get_license(name:str):
         return "Unknown"
 
 # pyinstaller编译的应用必须直接使用`distribution`函数获取模块信息, 否则会报错
-deta = [
+data = [
      distribution('bleak'),distribution('pyinstaller'),distribution('PyQt5'),distribution('PyQt5-Qt5'),distribution('PyQt5_sip')
     ,distribution('qasync'),distribution('winrt-runtime')
 ]
-[add_pak(d_) for d_ in deta]
+[add_pak(d_) for d_ in data]
 
 max_len = max(map(lambda x: x["len"], packages))
 

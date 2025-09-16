@@ -1,25 +1,25 @@
 {
-  "name": "t1.3.5.2",
+  "name": "t1.3.5.3",
   "version": 2,
   "VER2": [
     1,
     3,
     5,
-    2
+    3
   ],
-  "gxjs": "链接设备后禁用设备列表控制和刷新等",
+  "gxjs": "订正一个拼写错误的变量名",
   "frozen": {
-    "name": "v1.3.4-beta",
+    "name": "v1.3.5-beta",
     "version": 2,
     "VER2": [
       1,
       3,
-      4,
-      2
+      5,
+      3
     ],
-    "updateTime": "2025-8-25-15:00:00",
-    "gxjs": "本次更新优化了启动项管理和修复一些问题",
-    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.3.4-beta",
-    "download": "https://gitcode.com/lin15266115/HeartBeat/releases/download/v1.3.4-beta/HRMLink.exe"
+    "updateTime": "2025-9-16-12:00:00",
+    "gxjs": "本次更新将启动时自动连接更改为自动连接设备,优化了界面操作逻辑",
+    "index": "https://gitcode.com/lin15266115/HeartBeat/releases/v1.3.5-beta",
+    "download": "https://gitcode.com/lin15266115/HeartBeat/releases/download/v1.3.5-beta/HRMLink.exe"
   }
 }

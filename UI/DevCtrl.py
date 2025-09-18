@@ -31,6 +31,7 @@ class DeviceConnectionUI(QVBoxLayout):
         self.quit_ = False
         self.be_timeout = False
         self.usedevlist = True
+        self.auto_connect_now = True
         self.selected_device = self._get_set("last_selected_device", None, json.loads)
         self.auto_connect = self._get_set("auto_connect", False, bool)
         self.setup_ui()
@@ -201,8 +202,8 @@ class DeviceConnectionUI(QVBoxLayout):
                         "address": device.address
                     }
                     # 如果开启了自动连接，则尝试连接
-                    if self.auto_connect and self.usedevlist:
-                        await self.__use_for_auto_connect()
+                    if self.usedevlist:
+                        await self.use_for_auto_connect()
 
                 self.device_list.addItem(item)
 
@@ -227,9 +228,9 @@ class DeviceConnectionUI(QVBoxLayout):
             self.device_list_status.setText(f"扫描错误: {str(e)}")
             logger.error(f"扫描BLE设备错误: {e}", exc_info=True)
 
-    async def __use_for_auto_connect(self):
+    async def use_for_auto_connect(self):
         """自动连接"""
-        if self.auto_connect:
+        if self.auto_connect and self.auto_connect_now:
             await self.connect_device()
 
     def auto_scan(self, state):
@@ -242,6 +243,7 @@ class DeviceConnectionUI(QVBoxLayout):
     @asyncSlot()
     async def connect_device(self):
         """连接选定的设备"""
+        self.auto_connect_now = True
         if not self.selected_device:
             self.status_label.setText("请先选择设备")
             return
@@ -290,37 +292,42 @@ class DeviceConnectionUI(QVBoxLayout):
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
             logger.error(f"连接设备时出错: {e}", exc_info=True)
         self.linking = False
+    
+    status_label: QLabel
 
     def disconnect_error(self, e):
-            self.status_label.setText(f"断开连接错误: {str(e)}")
+        self.status_label.setText(e)
 
     @asyncSlot()
-    @try_except('断开连接错误', disconnect_error)
     async def disconnect_device(self):
         """断开当前连接"""
-        self.disconnect_button.setEnabled(False)
-        self.quit_ = True
-        success = await self.ble_monitor.disconnect_device()
-        if success:
-            self.be_timeout = False
-            self.status_label.setText("已断开连接")
-            self.set_devicelist_use(True)
-            self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
-            logger.info("已断开连接")
+        @try_except('断开连接错误',self.disconnect_error)
+        async def disconnect():
+            self.disconnect_button.setEnabled(False)
+            self.quit_ = True
+            success = await self.ble_monitor.disconnect_device()
+            if success:
+                self.auto_connect_now = False
+                self.be_timeout = False
+                self.status_label.setText("已断开连接")
+                self.set_devicelist_use(True)
+                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
+                logger.info("已断开连接")
 
-            # 显示收集的数据摘要
-            stats = self.ble_monitor.get_heart_rate_stats()
-            if stats:
-                self.heart_rate_display.append(
-                    f"\n心率统计:\n"
-                    f"最低: {stats['min']} BPM\n"
-                    f"最高: {stats['max']} BPM\n"
-                    f"平均: {stats['avg']:.1f} BPM\n"
-                    f"共记录 {stats['count']} 条数据"
-                )
-        else:
-            self.status_label.setText("断开连接失败")
-        self.quit_ = False
+                # 显示收集的数据摘要
+                stats = self.ble_monitor.get_heart_rate_stats()
+                if stats:
+                    self.heart_rate_display.append(
+                        f"\n心率统计:\n"
+                        f"最低: {stats['min']} BPM\n"
+                        f"最高: {stats['max']} BPM\n"
+                        f"平均: {stats['avg']:.1f} BPM\n"
+                        f"共记录 {stats['count']} 条数据"
+                    )
+            else:
+                self.status_label.setText("断开连接失败")
+            self.quit_ = False
+        await disconnect()
 
     def save_data(self):
         """保存心率数据到文件"""

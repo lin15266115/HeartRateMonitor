@@ -3,11 +3,12 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 5, 3)
-vname = "v" + ".".join(map(str, VER2[0:3])) + "-beta"
+VER2 = (1, 3, 6, 0)
+vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.2"
 
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
+IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
 from system_utils import (
      getlogger, upmod_logger, add_errorfunc, handle_exception
@@ -55,7 +56,9 @@ else:
             ,"version": 2
             ,"VER2": VER2
             ,"gxjs": "订正一个拼写错误的变量名"
-            ,"frozen":{
+        }
+        text = json.dumps(sdata, ensure_ascii=False, indent=2)
+        frozendata = {
                  "name":  vname
                 ,"version": 2
                 ,"VER2": VER2
@@ -64,17 +67,18 @@ else:
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
             }
-        }
-        json.dump(sdata, f, ensure_ascii=False, indent=2)
+        frozentext = f""",\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
+        text = text[0:-2] + frozentext
+        f.write(text)
     try:
-        import importlib
-        buildbatmain = importlib.import_module("build_bat").main
-        buildbatmain(VER2)
+        from importlib import import_module
+        buildbatmain = import_module("build_bat").main
+        buildbatmain(VER2, vname)
     except Exception: pass
 
 system_utils.VER2 = VER2
 
-logger.info(f"运行程序 -{__version__}" + " ".join(argv for argv in sys.argv if argv))
+logger.info(f"运行程序 -{__version__} " + " ".join(argv for argv in sys.argv if argv))
 logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 init_config()
@@ -98,9 +102,10 @@ pip_install_models(import_models, "bleak")
 from importlib.metadata import metadata as get_metadata, distributions, distribution, Distribution
 packages: list[dict[str, str|int]] = []
 packages.append({"nameandversion": "包名 == 版本号", "len": 10, "license":"开源许可证", "name":""})
-for entry in distributions():
-    nameandversion = f"{entry.name} == {entry.version}"
-    packages.append({"name": entry.name, "nameandversion": nameandversion, "len": len(nameandversion)})
+if not IS_NUITKA: # 避免nuitka编译后无法运行
+    for entry in distributions():
+        nameandversion = f"{entry.name} == {entry.version}"
+        packages.append({"name": entry.name, "nameandversion": nameandversion, "len": len(nameandversion)})
 
 def add_pak(name:Distribution):
     @try_except(f"手动获取依赖包名{name}", exit_ = False, exc_info=False)
@@ -119,14 +124,21 @@ def get_license(name:str):
 
 # pyinstaller编译的应用必须直接使用`distribution`函数获取模块信息, 否则会报错
 data = [
-     distribution('bleak'),distribution('pyinstaller'),distribution('PyQt5'),distribution('PyQt5-Qt5'),distribution('PyQt5_sip')
+     distribution('bleak'),
+     distribution('pyinstaller') if not IS_NUITKA else None,
+     distribution('PyQt5'),distribution('PyQt5-Qt5'),distribution('PyQt5_sip')
     ,distribution('qasync'),distribution('winrt-runtime')
 ]
-[add_pak(d_) for d_ in data]
+[add_pak(d_) if d_ else None for d_ in data]
 
 max_len = max(map(lambda x: x["len"], packages))
 
-packageslogtext = "\n  ".join(map(lambda x: f"{x["nameandversion"]:<{max_len+2}}-{get_metadata(x["name"]).get('License') if "license" not in x else x["license"]}", packages))
+packageslogtext = "\n  ".join(
+    map(
+    lambda x: f"{x["nameandversion"]:<{max_len+2}}-{get_metadata(x["name"]).get('License') if "license" not in x else x["license"]}"
+    , packages
+    )
+)
 
 logger.info("[项目依赖包清单:\n  "+packageslogtext + "\n]")
 

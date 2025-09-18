@@ -99,8 +99,8 @@ def try_except(errlogname = "", func_ = None, exit_ = True, exc_info = True):
                 logger.info(f"{errlogname} 完成")
                 return anything
             except Exception as e:
-                if func_ is not None: func_(e=e)
                 logger.error(f"{"严重" if exit_ else ""}错误: {errlogname} 失败: {e}", exc_info=exc_info)
+                if func_ is not None: func_(e=f"{"严重" if exit_ else ""}错误: {errlogname} 失败: {e}")
                 if exit_:
                     sys.exit(1)
         return main
@@ -353,39 +353,63 @@ def start_update_program():
         logger.error(f"启动更新程序时出错: {e}")
         sys.exit(1)
 
-def checkupdate() -> tuple[bool, str, str, str, str]:
+def checkupdate() :
     logger.info("检查更新中...")
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
-
-        with urllib.request.urlopen(url) as response: 
-            # 读取json格式
-            data = json.loads(response.read().decode('utf-8'))
-            
-            durl = data['frozen']['download']
-
-            if IS_FROZEN:
-                data_ = data['frozen']
-                up_index = data_['index']
-                updatetime = data_['updateTime']
-                try:
-                    if datetime.datetime.now() < datetime.datetime.strptime(updatetime, '%Y-%m-%d-%H:%M:%S'):
-                        return False, '', '', '', ''
-                except Exception as e:
-                    logger.error(f"更新时间检查失败: 更新时间读取失败({updatetime})")
-            else:
-                data_ = data
-                up_index = 'https://gitcode.com/lin15266115/HeartBeat'
-            VER2_VER = data_['VER2']
-            vname = data_['name']
-            gxjs = data_['gxjs']
-            if VER2_VER > [v for v in VER2]:
-                logger.info(f"发现新版本 {vname}[{'.'.join(map(str, VER2_VER))}]")
-                return True, up_index, vname, gxjs, durl
-            else:
-                logger.info("当前已是最新版本")
+        urlGitee = "https://gitee.com/lin_1526615/HeartRateMonitor/raw/main/version.json"
+        urlGithub = "https://api.github.com/repos/lin15266115/HeartRateMonitor/contents/version.json?ref=main"
+        return check_with_raw(url)
     except urllib.error.URLError as e:
-        logger.warning(f"更新检查失败(URL不可达): {e}")
+        logger.warning(f"更新检查失败(gitcodeURL不可达): {e}")
     except Exception as e:
         logger.error(f"更新检查失败(未标识的错误): {e}", exc_info=True)
+    finally:
+        try:
+            return check_with_raw(urlGitee)
+        except Exception as e:
+            try:
+                logger.warning(f"更新检查失败(gitee): {e}", exc_info=True)
+                return check_with_githubapi(urlGithub)
+            except Exception as e:
+                logger.error(f"更新检查失败(github): {e}", exc_info=True)
+                return False, '失败', '', '', ''
+
+def check_with_raw(url: str):
+    with urllib.request.urlopen(url) as response: 
+        # 读取json格式
+        data = json.loads(response.read().decode('utf-8'))
+        return read_data(data)
+
+def check_with_githubapi(url: str):
+    import base64
+    with urllib.request.urlopen(url) as response:
+        data = json.loads(response.read().decode('utf-8'))
+        if data['content']:
+            data_ = base64.b64decode(data['content']).decode('utf-8')
+            return read_data(json.loads(data_))
+
+def read_data(data)-> tuple[bool, str, str, str, str]:
+    durl = data['frozen']['download']
+
+    if IS_FROZEN:
+        data_ = data['frozen']
+        up_index = data_['index']
+        updatetime = data_['updateTime']
+        try:
+            if datetime.datetime.now() < datetime.datetime.strptime(updatetime, '%Y-%m-%d-%H:%M:%S'):
+                return False, '', '', '', ''
+        except Exception as e:
+            logger.error(f"更新时间检查失败: 更新时间读取失败({updatetime})")
+    else:
+        data_ = data
+        up_index = 'https://gitcode.com/lin15266115/HeartBeat'
+    VER2_VER = data_['VER2']
+    vname = data_['name']
+    gxjs = data_['gxjs']
+    if VER2_VER > [v for v in VER2]:
+        logger.info(f"发现新版本 {vname}[{'.'.join(map(str, VER2_VER))}]")
+        return True, up_index, vname, gxjs, durl
+    else:
+        logger.info("当前已是最新版本")
     return False, '', '', '', ''

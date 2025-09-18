@@ -1,8 +1,11 @@
 from typing import List, Optional, Dict
 import datetime
-from bleak import BleakScanner, BleakClient
+import asyncio
+from bleak import BleakScanner, BleakClient, BleakError
 
 from importlib.metadata import version
+
+from system_utils import logger
 # 心率服务UUID
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
 # 心率测量特征UUID
@@ -14,7 +17,19 @@ if tuple(map(int,version("bleak").split('.'))) < (1, 0, 0):
         return HEART_RATE_SERVICE_UUID in [ser.uuid for ser in services]
 else:
     async def check_service(client: BleakClient):
-        return any(ser.uuid == HEART_RATE_SERVICE_UUID for ser in client.services)
+        rtry = 0
+        while rtry <= 10:
+            try:
+                return any(ser.uuid == HEART_RATE_SERVICE_UUID for ser in client.services)
+            except BleakError as e:
+                if "Service Discovery has not been performed yet" in str(e):
+                    logger.warning(f"服务发现未完成({rtry}/10秒)")
+                    rtry += 1
+                    await asyncio.sleep(1)
+                else:
+                    raise e
+        raise TimeoutError("获取设备服务超时")
+
 
 class BLEHeartRateMonitor:
     """BLE连接和心率数据处理类"""

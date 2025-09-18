@@ -1,12 +1,14 @@
 本项目是一个基于 Python 的蓝牙心率监测工具，支持通过 BLE 设备获取心率数据，并提供浮动窗口显示等功能。欢迎提出建议或参与改进！
 
 ### 效果展示：
+
 [![视频](https://i1.hdslb.com/bfs/archive/3b60eb45c7b24938e62cdd3f3bc28e56ff5d8e2c.jpg@308w_174h)bilibili视频](https://www.bilibili.com/video/BV1VsEbzeE1N)
 
 ### 项目仓库：
-[github](https://github.com/lin15266115/HeartRateMonitor) |
-[gitee](https://gitee.com/lin_1526615/HeartRateMonitor) |
-[gitcode](https://gitcode.com/lin15266115/HeartBeat)
+
+[` github `](https://github.com/lin15266115/HeartRateMonitor)
+[` gitee `](https://gitee.com/lin_1526615/HeartRateMonitor)
+[` gitcode `](https://gitcode.com/lin15266115/HeartBeat)
 
 ## 运行程序
 
@@ -28,24 +30,29 @@
 
 如果 `方法1` 直接运行出现安装依赖相关错误，可以通过命令行手动安装依赖库：
 
-    推荐使用python3.12运行程序
+> 推荐使用python3.12运行程序
 
+```python
     pip install pyqt5
     pip install qasync
     pip install bleak
-
+```
 
 ## Q&A
 
 #### Q: 我的设备支持蓝牙且已经打开蓝牙, 运行程序时却扫描不到任何设备:
+
 - **A:** 请检查手环是否开启心跳广播, 如果开启后仍然找不到, 可以尝试在点进系统的蓝牙设置页面后, 再尝试点击本程序设备处的刷新按钮
+
 #### Q: 我要如何卸载HRMLink.exe?
+
 - **A:** 由于目前本程序不会往除exe文件所在目录以外的任何地方写入非临时性的文件(大概), 所以卸载程序时, 只需 `关闭开机自启` 后:
-    - 如果您从来没有手动往 `HRMlink.exe` 文件所在目录放入任何其它文件, 那么直接删除`HRMlink.exe`所在的文件夹即可
-    - 或者只删除文件夹中的 `HRMlink.exe`文件、`config.ini`文件 和 `log`文件夹(这些是程序本体和程序运行过程中产生的一些文件，这些文件包含您的个人设置和运行日志)
+  - 如果您从来没有手动往 `HRMlink.exe` 文件所在目录放入任何其它文件, 那么直接删除 `HRMlink.exe` 所在的文件夹即可
+  - 或者只删除文件夹中的 `HRMlink.exe` 文件、`config.ini` 文件 和 `log` 文件夹(这些是程序本体和程序运行过程中产生的一些文件，这些文件包含您的个人设置和运行日志)
 
 #### 暂时还没有更多......
 
+---
 ## 请暂时忽略以下内容，因为以下功能目前还在完善且作者尚未公开发布
 ### ~~关于序列帧播放~~
 1. ~~在新版本中新增了序列帧播放功能, 但目前仍然处于开发测试阶段~~

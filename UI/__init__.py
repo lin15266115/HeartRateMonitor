@@ -82,8 +82,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(get_icon())
 
         right_layout = QVBoxLayout()
-        right_layout.addWidget(self.float_ui, 5)
-        right_layout.addWidget(self.settings_ui, 3)
+        right_layout.addWidget(self.float_ui, 2)
+        right_layout.addWidget(self.settings_ui, 1)
 
         setting_layout.addLayout(self.device_ui, stretch=2)
         setting_layout.addLayout(right_layout, stretch=1)
@@ -152,14 +152,21 @@ class MainWindow(QMainWindow):
     def start_update_check(self):
         """启动后台线程进行自动更新检查"""
         def update_check_thread():
+            self.status_label.setText("正在检查更新...")
             try:
                 # 检查更新
                 update_available, index, vname, gxjs, down_url = checkupdate()
                 if update_available:
                     # 使用信号机制将结果显示到主线程
                     self.updata_window_show_.emit(index, vname, gxjs, down_url)
+                else:
+                    if index == "":
+                        self.status_label.setText("当前已是最新版本")
+                    else:
+                        self.status_label.setText("更新检查失败")
             except Exception as e:
                 logger.error(f"自动更新检查失败: {str(e)}")
+                self.status_label.setText("更新检查失败")
     
         # 创建并启动线程
         threading.Thread(target=update_check_thread, daemon=True).start()
@@ -181,7 +188,7 @@ class MainWindow(QMainWindow):
             self.updwin.show()
 
 # 应用设置UI类
-class AppSettingsUI(QWidget):
+class AppSettingsUI(QGroupBox):
     quit_application = pyqtSignal()
     show_settings = pyqtSignal()
     updsig = pyqtSignal()
@@ -217,10 +224,7 @@ class AppSettingsUI(QWidget):
 
     def setup_ui(self):
         self.app_icon = get_icon()
-
-        layout = QVBoxLayout()
-        
-        settings_group = QGroupBox("软件设置")
+        self.setTitle("软件设置")
         settings_layout = QVBoxLayout()
         
         CheackBox_(
@@ -250,9 +254,7 @@ class AppSettingsUI(QWidget):
         
         settings_layout.addWidget(self.check_update_btn)
 
-        settings_group.setLayout(settings_layout)
-        layout.addWidget(settings_group)
-        self.setLayout(layout)
+        self.setLayout(settings_layout)
 
 
     def setup_tray_icon(self):

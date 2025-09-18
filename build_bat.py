@@ -1,14 +1,10 @@
 import os
 
-def main(VER2):
+def main(VER2, vname=None):
+    if not vname: vname = ".".join(map(str, VER2))
     if os.path.exists("build.bat"):
-        with open("build.bat", "r+", encoding="utf-8") as f:
-            text = f.read()
-            x = text.rfind("t")
-            testnum = int(text[x+1:])+1
-            f.seek(0)
-            f.write(f"pyinstaller HRMLink.spec --clean --distpath=./_dist/{"v"+".".join(map(str, VER2))}-t{testnum}")
-            f.truncate()
+        with open("build.bat", "w", encoding="utf-8") as f:
+            f.write(f"pyinstaller HRMLink.spec --clean --distpath=./_dist/{vname}")
     if os.path.exists("version.txt"):
         with open("version.txt", "w", encoding="utf-8") as f:
             text_ = f"""VSVersionInfo(
@@ -43,11 +39,12 @@ def main(VER2):
             text__ = rf"""chcp 65001 > nul
 
 .\.conda\python -m nuitka ^
-  --output-dir=_nuitka/v{".".join(map(str, VER2))} ^
+  --output-dir=_nuitka/{vname} ^
   --output-filename=HRMLink.exe ^
   --enable-plugin=pyqt5 ^
   --include-package=bleak ^
   --include-package=winrt ^
+  --include-package=winrt.windows.foundation.collections ^
   --onefile ^
   --standalone ^
   --windows-console-mode=disable ^
@@ -59,6 +56,7 @@ def main(VER2):
   --product-version={".".join(map(str, VER2))} ^
   --file-description="通过低功耗蓝牙协议获取心率并显示 | Compiled using Nuitka" ^
   --copyright="Copyright (C) 2025 Zero_linofe | GPL-3.0 License" ^
+  --windows-icon-from-ico=_oldfiles/icon1.ico ^
   __main__.py
 """
             f.write(text__)

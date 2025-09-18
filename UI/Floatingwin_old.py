@@ -16,10 +16,12 @@ class FloatingHeartRateWindow(QWidget):
         self.text_color = QColor(self._get_set("text_color", 4292502628, int))
         self.text_base = self._get_set('text_base', "心率: {rate}", str)
         self.bg_color = QColor(0, 0, 0)
-        self.bg_opacity = self._get_set('bg_opacity', 50, int)
+        self.bg_opacity = self._get_set('bg_opacity', 125, int)
+        self.bg_brightness = self._get_set('bg_brightness', 90, int)
+        # 背景颜色纯度
+        self.bg_saturation = self._get_set('bg_saturation', 165, int)
         self.font_size = self._get_set('font-size', 30, int)
         self.padding = self._get_set('padding', 10, int)
-        self.bg_brightness = self._get_set('bg_brightness', 200, int)
         self.register_as_window = self._get_set('register_as_window', False, bool)
 
         self.setup_ui()
@@ -102,29 +104,30 @@ class FloatingHeartRateWindow(QWidget):
             rate = None
         self.heart_rate_label.setText(self.text_base.format(rate=rate if rate else '--'))
         
-        maxc = self.bg_brightness
+        sat = self.bg_saturation
+        bri = self.bg_brightness
         
         # 根据心率值动态改变背景颜色(使用HSB)
         if not isinstance(rate, int):
             self.bg_color = QColor.fromHsv(0, 0, 0)  # 黑色
         elif rate < 40:
-            self.bg_color = QColor.fromHsv(240, 255, maxc)  # 蓝色
+            self.bg_color = QColor.fromHsv(240, sat, bri)  # 蓝色
         elif rate < 55:
             hue = 240 - int((rate - 40) * (60/15))  # 从蓝色(240)过渡到青色(180)
-            self.bg_color = QColor.fromHsv(hue, 255, maxc)
+            self.bg_color = QColor.fromHsv(hue, sat, bri)
         elif rate < 70:
             hue = 180 - int((rate - 55) * (60/15))  # 从青色(180)过渡到绿色(120)
-            self.bg_color = QColor.fromHsv(hue, 255, maxc)
+            self.bg_color = QColor.fromHsv(hue, sat, bri)
         elif rate < 90:
-            self.bg_color = QColor.fromHsv(120, 255, maxc)  # 绿色
+            self.bg_color = QColor.fromHsv(120, sat, bri)  # 绿色
         elif rate < 105:
             hue = 120 - int((rate - 90) * (60/15))  # 从绿色(120)过渡到黄色(60)
-            self.bg_color = QColor.fromHsv(hue, 255, maxc)
+            self.bg_color = QColor.fromHsv(hue, sat, bri)
         elif rate < 120:
             hue = 60 - int((rate - 105) * (60/15))  # 从黄色(60)过渡到红色(0)
-            self.bg_color = QColor.fromHsv(hue, 255, maxc)
+            self.bg_color = QColor.fromHsv(hue, sat, bri)
         elif rate >= 120:
-            self.bg_color = QColor.fromHsv(0, 255, maxc)
+            self.bg_color = QColor.fromHsv(0, sat, bri)
     
             self.update_style()
 
@@ -157,8 +160,7 @@ class FloatingHeartRateWindow(QWidget):
         if update_setting:
             self._up_set('bg_opacity', self.bg_opacity)
             self.update_heart_rate()
-        else:
-            self.update_heart_rate(105)
+        else:self.update_heart_rate(105)
 
     def set_bg_brightness(self, brightness=None, update_setting=True):
         """设置背景亮度"""
@@ -166,8 +168,15 @@ class FloatingHeartRateWindow(QWidget):
         if update_setting:
             self._up_set('bg_brightness', self.bg_brightness)
             self.update_heart_rate()
-        else:
-            self.update_heart_rate(105)
+        else:self.update_heart_rate(105)
+
+    def set_bg_saturation(self, saturation=None, update_setting=True):
+        """设置背景饱和度"""
+        self.bg_saturation = saturation or self.bg_saturation
+        if update_setting:
+            self._up_set('bg_saturation', self.bg_saturation)
+            self.update_heart_rate()
+        else:self.update_heart_rate(105)
 
     def set_font_size(self, size):
         """设置字体大小"""
@@ -195,7 +204,7 @@ class FloatingHeartRateWindow(QWidget):
     def closeEvent(self, a0):
         a0.ignore()
         
-class FloatingWindowSettingUI(QWidget):
+class FloatingWindowSettingUI(QGroupBox):
     """浮动窗口设置界面类"""
     
     @try_except("浮动窗口设置界面初始化")
@@ -206,10 +215,8 @@ class FloatingWindowSettingUI(QWidget):
 
     def setup_ui(self):
         """初始化设置界面UI"""
-        layout = QVBoxLayout()
-
         # 浮动窗口设置分组框
-        float_group = QGroupBox("浮动窗口设置")
+        self.setTitle("浮动窗口设置")
         float_layout = QVBoxLayout()
 
         # 显示控制区域
@@ -291,6 +298,15 @@ class FloatingWindowSettingUI(QWidget):
         brightness_layout.addWidget(self.brightness_slider)
         float_layout.addLayout(brightness_layout)
 
+        # 背景纯度设置区域
+        saturation_layout = QHBoxLayout()
+        bg_sat = self.floating_window.bg_saturation
+        self.saturation_slider = Slider_(bg_sat, self.set_bg_saturation)
+
+        saturation_layout.addWidget(QLabel("背景纯度:"))
+        saturation_layout.addWidget(self.saturation_slider)
+        float_layout.addLayout(saturation_layout)
+
         # 注册为常规窗口选项
         register_layout = QHBoxLayout()
         self.register_window_check = QCheckBox("注册为常规窗口(OBS捕获)")
@@ -301,9 +317,7 @@ class FloatingWindowSettingUI(QWidget):
         float_layout.addLayout(register_layout)
 
         # 完成布局设置
-        float_group.setLayout(float_layout)
-        layout.addWidget(float_group)
-        self.setLayout(layout)
+        self.setLayout(float_layout)
 
         # 根据初始设置显示或隐藏浮动窗口
         if fwindow_canlook:
@@ -385,3 +399,7 @@ class FloatingWindowSettingUI(QWidget):
     def set_bg_brightness(self, value=None, ups_=True):
         """设置背景亮度"""
         self.floating_window.set_bg_brightness(value, ups_)
+    
+    def set_bg_saturation(self, value=None, ups_=True):
+        """设置背景纯度"""
+        self.floating_window.set_bg_saturation(value, ups_)

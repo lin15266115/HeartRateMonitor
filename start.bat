@@ -6,9 +6,11 @@ cd /d "%~dp0"
     REM "set your python path here(if you don't set it, it may not work properly)"
     set PYTHONPATH=.conda/
 
-    IF "%1"=="-startup" (
+    IF "%1"=="" (
+        "%PYTHONPATH%pythonw.exe" __main__.py
+    ) ELSE IF "%1"=="-startup" (
         "%PYTHONPATH%python.exe" __main__.py -startup
     ) ELSE (
-        start "" "%PYTHONPATH%pythonw.exe" __main__.py
+        "%PYTHONPATH%pythonw.exe" __main__.py "%1"
     )
     exit

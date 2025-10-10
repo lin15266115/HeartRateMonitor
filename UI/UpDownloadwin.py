@@ -83,7 +83,7 @@ class UpdWindow(QDialog):
         # 下载管理
         downloadlay = QHBoxLayout()
 
-        self.download_btn = QPushButton("开始下载")
+        self.download_btn = QPushButton("Gitcode源下载")
         downloadlay.addWidget(self.download_btn)
         self.download_btn.clicked.connect(self.start_download)
 

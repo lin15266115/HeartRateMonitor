@@ -3,11 +3,12 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 6, 0)
-vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.2"
+VER2 = (1, 3, 6, 1)
+vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.9"
 
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
+system_utils.VER2 = VER2
 IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
 from system_utils import (
@@ -21,7 +22,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-updatemode', action='store_true', help='更新模式标志')
 parser.add_argument('-endup', action='store_true', help='更新结束标志')
 parser.add_argument('-startup', action='store_true', help='用于测试应用能否通过start.bat脚本正常启动')
+parser.add_argument('-start_', action='store_true', help='开机启动标志')
 args = parser.parse_args()
+
+if args.start_:
+    system_utils.SLEEP_TIME = 10
 
 if args.startup:
     print("Success!")
@@ -55,7 +60,7 @@ else:
              "name": __version__
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "订正一个拼写错误的变量名"
+            ,"gxjs": "修复定时断开链接无法使用的问题和应用更新相关优化等"
         }
         text = json.dumps(sdata, ensure_ascii=False, indent=2)
         frozendata = {
@@ -67,7 +72,7 @@ else:
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
             }
-        frozentext = f""",\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
+        frozentext = f""",\n\n\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
         text = text[0:-2] + frozentext
         f.write(text)
     try:
@@ -75,11 +80,6 @@ else:
         buildbatmain = import_module("build_bat").main
         buildbatmain(VER2, vname)
     except Exception: pass
-
-system_utils.VER2 = VER2
-
-logger.info(f"运行程序 -{__version__} " + " ".join(argv for argv in sys.argv if argv))
-logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 init_config()
 

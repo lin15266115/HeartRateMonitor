@@ -267,7 +267,7 @@ class DeviceConnectionUI(QVBoxLayout):
                 duration = self.duration_spin.value()
                 logger.info(f"自动断开时间 {duration} 秒(0表示不自动断开)")
                 if duration > 0:
-                    QTimer.singleShot(duration * 1000, lambda: asyncio.create_task(self.disconnect_device()))
+                    QTimer.singleShot(duration * 1000, self.disconnect_device)
         except BleakDeviceNotFoundError:
             self.status_label.setText(f"未找到设备 {device_name}")
             logger.error(f"未找到设备 {device_name}")
@@ -297,7 +297,7 @@ class DeviceConnectionUI(QVBoxLayout):
 
     def disconnect_error(self, e):
         self.status_label.setText(e)
-
+    
     @asyncSlot()
     async def disconnect_device(self):
         """断开当前连接"""
@@ -311,6 +311,7 @@ class DeviceConnectionUI(QVBoxLayout):
                 self.be_timeout = False
                 self.status_label.setText("已断开连接")
                 self.set_devicelist_use(True)
+                self.device_list_status.setText("...")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已断开连接")
                 logger.info("已断开连接")
 

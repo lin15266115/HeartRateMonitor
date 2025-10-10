@@ -42,6 +42,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='version.txt', 
+    version='version.txt',
     icon='./_oldfiles/icon1.ico'
 )

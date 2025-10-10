@@ -1,3 +1,4 @@
+import time
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QWidget,
@@ -5,7 +6,6 @@ from PyQt5.QtWidgets import (
     QSystemTrayIcon, QMenu)
 from PyQt5.QtCore import Qt, pyqtSignal
 
-import time
 import threading
 
 from .DevCtrl import *
@@ -24,6 +24,8 @@ class MainWindow(QMainWindow):
     def __init__(self, version):
         super().__init__()
         self.version = version
+        self.cupd = 0
+        self.cupdtime = 0.0
         self.setup_ui()
         self.setup_connections()
         
@@ -135,12 +137,12 @@ class MainWindow(QMainWindow):
             self.close_application()
             e_accept()
 
-
-    def verylarge_error(self, error_message: str):
+    def verylarge_error(self, error_message: str, exit_ = True, setiserror = True):
         if not self.iserror:
-            self.iserror = True
-            QMessageBox.critical(self, "严重错误", error_message, QMessageBox.Ok)
-        self.close_application()
+            self.iserror = setiserror
+            QMessageBox.critical(self, f"{"严重"if exit_ else""}错误", error_message, QMessageBox.Ok)
+        if exit_:
+            self.close_application()
 
     def close_application(self):
         """执行退出程序的操作"""
@@ -153,21 +155,40 @@ class MainWindow(QMainWindow):
         """启动后台线程进行自动更新检查"""
         def update_check_thread():
             self.status_label.setText("正在检查更新...")
-            try:
-                # 检查更新
-                update_available, index, vname, gxjs, down_url = checkupdate()
-                if update_available:
-                    # 使用信号机制将结果显示到主线程
-                    self.updata_window_show_.emit(index, vname, gxjs, down_url)
-                else:
-                    if index == "":
-                        self.status_label.setText("当前已是最新版本")
+            # 检查更新
+            update_available, index, vname, gxjs, down_url = checkupdate()
+            if update_available:
+                # 使用信号机制将结果显示到主线程
+                self.updata_window_show_.emit(index, vname, gxjs, down_url)
+            else:
+                if index == "":
+                    self.status_label.setText("当前已是最新版本")
+                elif index == "时限禁用":
+                    print(f"{self.cupd} {self.cupdtime}")
+                    if time.time() - self.cupdtime > 15:
+                        self.cupd = 0
+                    self.cupdtime = time.time()
+                    self.cupd += 1
+                    if self.cupd <= 3:
+                        self.status_label.setText("刚刚已经检查过更新了")
+                    elif self.cupd <= 20:
+                        self.status_label.setText("刚刚已经检查过更新了喵~")
+                    elif self.cupd <= 30:
+                        self.status_label.setText("不要再点了喵~~")
+                    elif self.cupd <= 35:
+                        self.status_label.setText(f"再点我要罢工了喵({self.cupd-30}/5)")
+                    elif self.cupd <= 36:
+                        self.status_label.setText("哈! 我没有开玩笑喵!!!!")
+                    elif self.cupd <= 37:
+                        logger.error("频繁点击更新让猫猫生气了")
+                        self.verylarge_error("频繁点击更新让猫猫生气了, 再按猫猫要把进程吃掉了喵", False, False)
+                        self.verylarge_error("拦截了一个奇怪的错误", False, False)
                     else:
-                        self.status_label.setText("更新检查失败")
-            except Exception as e:
-                logger.error(f"自动更新检查失败: {str(e)}")
-                self.status_label.setText("更新检查失败")
-    
+                        logger.error("疑似进程被吃了, 程序退出")
+                        self.verylarge_error("嘎嘣一响, 程序崩溃了<(> w <)>")
+                else:
+                    self.status_label.setText("更新检查失败")
+
         # 创建并启动线程
         threading.Thread(target=update_check_thread, daemon=True).start()
 

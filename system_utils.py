@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import json
 import shutil
 import logging
@@ -8,13 +9,42 @@ import subprocess
 import urllib.error
 import urllib.request
 from typing import Any
+from logging.handlers import RotatingFileHandler
 
 VER2:tuple[int,int,int,int]
 IS_FROZEN = None
+SLEEP_TIME = 1
+class AppisRunning(Exception):pass
+
+# --------进程检测--------
+def check_running():
+    cmd = 'tasklist'
+    if IS_FROZEN:
+        cmd += ' /fi "imagename eq HRMLink.exe" /nh'
+    else:
+        return False
+    result = subprocess.check_output(cmd, shell=True)
+    if 'HRMLink.exe' in result.decode('utf-8'):
+        raise AppisRunning
+    return False
 
 # --------日志处理--------
+class CanNotSaveLogFile(Exception):
+    """创建日志文件失败"""
+    level = 0
 
-class AppisRunning(Exception):pass
+class MyHandler(RotatingFileHandler):
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except Exception as e:
+            raise CanNotSaveLogFile("日志保存失败: %s" % e)
+        if IS_FROZEN:
+            __version__ = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.9"
+        else:
+            __version__ = 't' + '.'.join(map(str, VER2))
+        logger.info(f"运行程序 -{__version__} " + " ".join(argv for argv in sys.argv if argv))
+        logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 def getlogger():
     global logger
@@ -22,22 +52,28 @@ def getlogger():
     logger = logging.getLogger('__main__')
     logger.setLevel(logging.DEBUG)
 
-    if not os.path.exists('log'):
-        os.mkdir('log')
-    if os.path.exists('log/loger1.log'):
-        if os.path.exists('log/loger2.log'):
-            os.remove('log/loger2.log')
-        try:
-            os.rename('log/loger1.log', 'log/loger2.log')
-        except Exception:
-            raise AppisRunning('程序正在运行!')
+    print(2.1)
+    set_logfile()
 
-    handler = logging.FileHandler('log/loger1.log', 'w', encoding='utf-8')
+    try:
+        handler = MyHandler(
+             'log/loger.log'
+            ,maxBytes=5*1024*1024
+            ,backupCount=3
+            ,encoding='utf-8'
+        )
+    except Exception:
+        # 无法使用日志文件时使用一般的日志记录器
+        handler = logging.StreamHandler()
+        raise CanNotSaveLogFile("无法创建日志文件")
     handler.setLevel(logging.DEBUG)
+    print(2.2)
 
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    if isinstance(handler, MyHandler):
+        handler.doRollover()
     return logger
 
 def upmod_logger():
@@ -56,6 +92,25 @@ def upmod_logger():
     logger.addHandler(handler)
     return logger
 
+def set_logfile():
+    """设置日志文件"""
+    rt = 0
+    while rt < 20:
+        try:
+            if not os.path.exists('log'):
+                os.mkdir('log')
+            if os.path.exists('log/loger1.log'):
+                print("正在删除旧日志文件1...")
+                os.remove('log/loger1.log')
+            if os.path.exists('log/loger2.log'):
+                print("正在删除旧日志文件2...")
+                os.remove('log/loger2.log')
+            return
+        except Exception as e:
+            print(f"错误: {e}")
+            time.sleep(SLEEP_TIME)
+            rt += 1
+
 # --------错误输出处理函数--------
 
 errorfunc = None
@@ -71,15 +126,21 @@ def handle_exception(exc_type, exc_value, exc_traceback):
             exc_info=(exc_type, exc_value, exc_traceback)
         )
         if errorfunc:
-            errorfunc(exc_type, exc_value)
+            errorfunc(exc_type, exc_value, False)
         pip_install_package(exc_type.name)
+        sys.exit(1)
 
+    if hasattr(exc_value, 'level'):
+        lv = exc_value.level
+    else:
+        lv = 1
     logger.error(
-        "严重错误: \n",
+        f"{"严重"if lv==1 else""}错误: \n",
         exc_info=(exc_type, exc_value, exc_traceback)
     )
+    exit_ = False if lv == 0 else True
     if errorfunc:
-        errorfunc(exc_type, exc_value)
+        errorfunc(exc_type, exc_value, exit_, exit_)
 
 def add_errorfunc(func):
     """用于添加错误处理函数
@@ -237,7 +298,7 @@ def add_to_startup():
 
     try:
         registry_key = reg.OpenKey(key, KEYPATH, 0, reg.KEY_WRITE)
-        reg.SetValueEx(registry_key, APPNAME, 0, reg.REG_SZ, rf'"{value}"')
+        reg.SetValueEx(registry_key, APPNAME, 0, reg.REG_SZ, rf'"{value}" -start_')
         reg.CloseKey(registry_key)
         return "成功"
     except WindowsError:
@@ -270,7 +331,7 @@ def check_startup():
     try:
         with reg.OpenKey(key, KEYPATH) as registry_key:
             value_, regtype = reg.QueryValueEx(registry_key, APPNAME)
-            return (value_ == rf'"{value}"'), value_
+            return (value_ == rf'"{value}" -start_'), value_
     except FileNotFoundError:
         logger.warning("[启动项] 键不存在")
         return False, ""
@@ -342,7 +403,7 @@ def start_update_program():
         # 获取更新文件路径(upd.exe)
         target_dir = os.path.dirname(current_exe)
         update_exe = os.path.join(target_dir, "upd.exe")
-        
+
         # 启动更新程序
         logger.info("正在启动更新程序...")
         os.startfile(update_exe, arguments="-updatemode")
@@ -355,6 +416,12 @@ def start_update_program():
 
 def checkupdate() :
     logger.info("检查更新中...")
+    dtime = time.time() - gs("GUI","upstime",0,float,"检查更新")
+    if dtime<200:
+        logger.info(f"禁用检查更新中({int(dtime)}s/200s)")
+        return False, '时限禁用', '', '', ''
+    else:
+        ups("GUI","upstime",time.time(),"检查更新")
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
         urlGitee = "https://gitee.com/lin_1526615/HeartRateMonitor/raw/main/version.json"

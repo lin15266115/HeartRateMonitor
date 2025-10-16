@@ -10,6 +10,9 @@
 [` gitee `](https://gitee.com/lin_1526615/HeartRateMonitor)
 [` gitcode `](https://gitcode.com/lin15266115/HeartBeat)
 
+## 其它下载链接：
+[度盘(包含更多测试版本)](https://pan.baidu.com/s/1xJL4eNqg-PcjLqH8iAD4_g?pwd=ukpy)
+
 ## 运行程序
 
 **方法1**: (推荐)使用代码运行 -<u>**下载zip** 解压后根据python环境修改 [`start.bat`](start.bat) 后再双击 [`start.bat`](start.bat) 即可运行</u>

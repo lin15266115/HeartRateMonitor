@@ -1,4 +1,5 @@
 import time
+import json
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QWidget,
@@ -12,20 +13,24 @@ from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import UpdWindow as DownloadWindow
-from system_utils import IS_FROZEN, VER2, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
+from system_utils import check_run, AppisRunning, vname, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
 
 from .Floatingwin_old import *
 
 # 主窗口类
 class MainWindow(QMainWindow):
     updata_window_show_ = pyqtSignal(str, str, str, str)
+    errorwinopen = pyqtSignal(str, bool, bool)
     iserror = False
     @try_except("主窗口初始化")
-    def __init__(self, version):
+    def __init__(self):
         super().__init__()
-        self.version = version
+        self.version = vname
         self.cupd = 0
         self.cupdtime = 0.0
+
+        self.errorwinopen.connect(self.errorwin)
+
         self.setup_ui()
         self.setup_connections()
         
@@ -34,6 +39,13 @@ class MainWindow(QMainWindow):
         # 启动后台线程检查更新
         if self.settings_ui._get_set("update_check", False, bool):
             self.start_update_check()
+        
+        try:
+            check_run()
+        except AppisRunning as e:
+            self.verylarge_error("程序已经在运行了!!!")
+            import sys
+            sys.exit(1)
         
         self.settings_ui.check_startup()
 
@@ -96,9 +108,17 @@ class MainWindow(QMainWindow):
         # 连接各模块之间的信号和槽
         self.device_ui.heart_rate_updated.connect(self.float_ui.update_heart_rate)
         self.device_ui.status_changed.connect(self.status_label.setText)
+        self.device_ui.upd_lastST.connect(self.settings_ui.change_devname)
+        self.device_ui.set_act_Devstatus.connect(self.settings_ui.dev_status)
         self.settings_ui.quit_application.connect(self.check_device_status_before_close)
         self.settings_ui.show_settings.connect(self.show_window)
         self.settings_ui.updsig.connect(self.start_update_check)
+        def act_HR_clicked():
+            if self.settings_ui.devstautus == "连接":
+                self.device_ui.connect_device()
+            else:
+                self.device_ui.disconnect_device()
+        self.settings_ui.act_HR_clicked.connect(act_HR_clicked)
 
     def show_window(self):
         """显示设置窗口"""
@@ -137,12 +157,15 @@ class MainWindow(QMainWindow):
             self.close_application()
             e_accept()
 
-    def verylarge_error(self, error_message: str, exit_ = True, setiserror = True):
+    def errorwin(self, error_message: str, exit_ = True, setiserror = True):
         if not self.iserror:
             self.iserror = setiserror
             QMessageBox.critical(self, f"{"严重"if exit_ else""}错误", error_message, QMessageBox.Ok)
         if exit_:
             self.close_application()
+
+    def verylarge_error(self, error_message: str, exit_ = True, setiserror = True):
+        self.errorwinopen.emit(error_message, exit_, setiserror)
 
     def close_application(self):
         """执行退出程序的操作"""
@@ -213,10 +236,12 @@ class AppSettingsUI(QGroupBox):
     quit_application = pyqtSignal()
     show_settings = pyqtSignal()
     updsig = pyqtSignal()
+    act_HR_clicked = pyqtSignal()
 
     @try_except("设置UI初始化")
     def __init__(self):
         super().__init__()
+        self.devstautus = "连接"
         self.setup_ui()
         self.setup_tray_icon()
     
@@ -277,7 +302,6 @@ class AppSettingsUI(QGroupBox):
 
         self.setLayout(settings_layout)
 
-
     def setup_tray_icon(self):
         """设置系统托盘图标"""
 
@@ -285,8 +309,9 @@ class AppSettingsUI(QGroupBox):
 
             self.tray_icon = QSystemTrayIcon(self)
             self.tray_icon.setIcon(get_icon())
+            self.tray_icon.setToolTip("HRMLink")
 
-            tray_menu = QMenu()
+            self.trme = tray_menu = QMenu()
 
             # 添加菜单项
             show_settings_action = tray_menu.addAction("打开设置")
@@ -298,8 +323,16 @@ class AppSettingsUI(QGroupBox):
             quit_action.triggered.connect(self.quit_application.emit)
 
             self.tray_icon.setContextMenu(tray_menu)
+            print(51)
             self.tray_icon.show()
+            print(52)
             self.tray_icon.activated.connect(self.on_tray_icon_activated)
+
+            dev = gs("Device","last_selected_device",None,json.loads,"-获取自动连接设备名称")
+            self.devname = dev["name"] if dev is not None else None
+            if dev is not None:
+                self.act_HR = tray_menu.addAction(f"连接 {dev["name"]}")
+                self.act_HR.triggered.connect(self.act_HR_clicked.emit)
 
     def on_tray_icon_activated(self, reason):
         """托盘图标点击事件"""
@@ -329,6 +362,21 @@ class AppSettingsUI(QGroupBox):
         else:
             remove_from_startup()
             self._up_set('startup', False)
+
+    def dev_status(self, status):
+        self.devstautus = status
+        self.change_devname()
+
+    def change_devname(self, devname=None):
+        devname = devname or self.devname
+        self.devname = devname
+        if devname is None:
+            return
+        if self.act_HR is None:
+            self.act_HR = self.trme.addAction(f"{self.devstautus} {devname}")
+            self.act_HR.triggered.connect(self.act_HR_clicked.emit)
+        else:
+            self.act_HR.setText(f"{self.devstautus} {devname}")
 
     def _up_set(self, option: str, value):
         ups('GUI', option, value, debugn="GUI")

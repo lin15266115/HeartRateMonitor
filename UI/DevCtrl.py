@@ -19,6 +19,8 @@ __all__ = ["DeviceConnectionUI"]
 class DeviceConnectionUI(QVBoxLayout):
     heart_rate_updated = pyqtSignal(int)
     status_changed = pyqtSignal(str)
+    upd_lastST = pyqtSignal(str)
+    set_act_Devstatus = pyqtSignal(str)
     DEVICE_DATA_ROLE = Qt.UserRole + 1
 
     @try_except("设备链接界面初始化")
@@ -166,6 +168,7 @@ class DeviceConnectionUI(QVBoxLayout):
             "address": device_text[device_text.find("(")+1:device_text.find(")")]
         }
 
+        self.upd_lastST.emit(self.selected_device["name"])
         self._up_set("last_selected_device", json.dumps(self.selected_device))
 
         # 添加"[已选择]"标记并更新显示
@@ -247,6 +250,8 @@ class DeviceConnectionUI(QVBoxLayout):
         if not self.selected_device:
             self.status_label.setText("请先选择设备")
             return
+        # 如果正在连接，则返回
+        if self.linking: return
 
         device_name = self.selected_device["name"]
         device_address = self.selected_device["address"]
@@ -261,6 +266,7 @@ class DeviceConnectionUI(QVBoxLayout):
             self.status_label.setText(rtext.format(device_address=device_name))
             logger.info(rtext.format(device_address=f"{device_name} ({device_address})"))
             if success:
+                self.set_act_Devstatus.emit("断开")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
 
                 # 设置自动断开定时器（如果设置了时间）
@@ -268,6 +274,9 @@ class DeviceConnectionUI(QVBoxLayout):
                 logger.info(f"自动断开时间 {duration} 秒(0表示不自动断开)")
                 if duration > 0:
                     QTimer.singleShot(duration * 1000, self.disconnect_device)
+
+        # 链接设备时错误处理===========
+        #
         except BleakDeviceNotFoundError:
             self.status_label.setText(f"未找到设备 {device_name}")
             logger.error(f"未找到设备 {device_name}")
@@ -291,9 +300,10 @@ class DeviceConnectionUI(QVBoxLayout):
             self.status_label.setText(f"连接错误: {str(e)}")
             self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
             logger.error(f"连接设备时出错: {e}", exc_info=True)
+        #
+        # =============================
+
         self.linking = False
-    
-    status_label: QLabel
 
     def disconnect_error(self, e):
         self.status_label.setText(e)
@@ -307,6 +317,7 @@ class DeviceConnectionUI(QVBoxLayout):
             self.quit_ = True
             success = await self.ble_monitor.disconnect_device()
             if success:
+                self.set_act_Devstatus.emit("连接")
                 self.auto_connect_now = False
                 self.be_timeout = False
                 self.status_label.setText("已断开连接")
@@ -361,6 +372,7 @@ class DeviceConnectionUI(QVBoxLayout):
         else:
             if self.be_timeout:
                 self.status_label.setText("链接被断开")
+                self.set_act_Devstatus.emit("连接")
                 self.be_timeout = False
                 self.set_devicelist_use(True)
             self.heart_rate_updated.emit(-1)

@@ -7,10 +7,10 @@ cd /d "%~dp0"
     set PYTHONPATH=.conda/
 
     IF "%1"=="" (
-        "%PYTHONPATH%pythonw.exe" __main__.py
+        start "" "%PYTHONPATH%pythonw.exe" __main__.py
     ) ELSE IF "%1"=="-startup" (
         "%PYTHONPATH%python.exe" __main__.py -startup
     ) ELSE (
-        "%PYTHONPATH%pythonw.exe" __main__.py "%1"
+        start "" "%PYTHONPATH%pythonw.exe" __main__.py "%1"
     )
     exit

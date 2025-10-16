@@ -12,12 +12,13 @@ from typing import Any
 from logging.handlers import RotatingFileHandler
 
 VER2:tuple[int,int,int,int]
+vname = "no version name"
 IS_FROZEN = None
 SLEEP_TIME = 1
 class AppisRunning(Exception):pass
 
 # --------进程检测--------
-def check_running():
+def check_run():
     cmd = 'tasklist'
     if IS_FROZEN:
         cmd += ' /fi "imagename eq HRMLink.exe" /nh'
@@ -25,7 +26,10 @@ def check_running():
         return False
     result = subprocess.check_output(cmd, shell=True)
     if 'HRMLink.exe' in result.decode('utf-8'):
-        raise AppisRunning
+        dete = len(result.decode('utf-8').split('HRMLink.exe'))
+        if dete > 3:
+            print("程序已运行")
+            raise AppisRunning
     return False
 
 # --------日志处理--------
@@ -40,7 +44,7 @@ class MyHandler(RotatingFileHandler):
         except Exception as e:
             raise CanNotSaveLogFile("日志保存失败: %s" % e)
         if IS_FROZEN:
-            __version__ = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.9"
+            __version__ = vname
         else:
             __version__ = 't' + '.'.join(map(str, VER2))
         logger.info(f"运行程序 -{__version__} " + " ".join(argv for argv in sys.argv if argv))

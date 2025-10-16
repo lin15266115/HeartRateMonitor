@@ -3,12 +3,19 @@ import json
 import asyncio
 import argparse
 
-VER2 = (1, 3, 6, 1)
-vname = "v" + ".".join(map(str, VER2[0:3])) + "-alpha.9"
-
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
-system_utils.VER2 = VER2
+
+VER2 = (1, 3, 6, 2)
+BINARY_BUILD = 10
+v1      = "v" + ".".join(map(str, VER2[0:3]))
+F_      = f"-alpha.{BINARY_BUILD}"
+vname   = v1 + (F_ if IS_FROZEN else f"+code.{VER2[3]}")
+Fvname  = v1 +  F_
+__version__ = vname
+
+system_utils.VER2  = VER2
+system_utils.vname = vname
 IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
 from system_utils import (
@@ -42,8 +49,6 @@ else:
 sys.excepthook = handle_exception
 
 if IS_FROZEN:
-    __version__ = vname
-
     # 更新模式
     if args.updatemode:
         logger.info("进入更新模式...")
@@ -54,23 +59,22 @@ if IS_FROZEN:
         logger.info("进入更新结束模式...")
         handle_end_update()
 else:
-    __version__ = 't' + '.'.join(map(str, VER2))
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
-             "name": __version__
+             "name": vname
             ,"version": 2
             ,"VER2": VER2
             ,"gxjs": "修复定时断开链接无法使用的问题和应用更新相关优化等"
         }
         text = json.dumps(sdata, ensure_ascii=False, indent=2)
         frozendata = {
-                 "name":  vname
+                 "name": Fvname
                 ,"version": 2
                 ,"VER2": VER2
                 ,"updateTime": "2025-9-16-12:00:00"
                 ,"gxjs": "本次更新将启动时自动连接更改为自动连接设备,优化了界面操作逻辑"
-                ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{vname}"
-                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{vname}/HRMLink.exe"
+                ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{Fvname}"
+                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{Fvname}/HRMLink.exe"
             }
         frozentext = f""",\n\n\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
         text = text[0:-2] + frozentext
@@ -78,7 +82,7 @@ else:
     try:
         from importlib import import_module
         buildbatmain = import_module("build_bat").main
-        buildbatmain(VER2, vname)
+        buildbatmain(VER2, Fvname)
     except Exception: pass
 
 init_config()
@@ -156,17 +160,17 @@ if __name__ == "__main__":
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    window = MainWindow(__version__)
+    window = MainWindow()
     window.show()
     hwnd = window.winId()
 
-    screen = app.primaryScreen()
-    screen.logicalDotsPerInchChanged.connect(window.auto_FixedSize)
-
     def errwin(exc_type, exc_value):
         window.verylarge_error(f"{exc_type.__name__}: {exc_value}")
-
     add_errorfunc(errwin)
+
+
+    screen = app.primaryScreen()
+    screen.logicalDotsPerInchChanged.connect(window.auto_FixedSize)
 
     with loop:
         screens = app.screens()

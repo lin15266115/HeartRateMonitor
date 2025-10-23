@@ -6,8 +6,8 @@ import argparse
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 
-VER2 = (1, 3, 6, 2)
-BINARY_BUILD = 0
+VER2 = (1, 3, 6, 3)
+BINARY_BUILD = 1
 v1      = "v" + ".".join(map(str, VER2[0:3]))
 F_      = f"-beta.{BINARY_BUILD}"
 vname   = v1 + (F_ if IS_FROZEN else f"+code.{VER2[3]}")

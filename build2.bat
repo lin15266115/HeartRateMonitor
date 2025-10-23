@@ -1,7 +1,7 @@
 chcp 65001 > nul
 
 .\.conda\python -m nuitka ^
-  --output-dir=_nuitka/v1.3.6-alpha.10 ^
+  --output-dir=_nuitka/v1.3.6-beta.0 ^
   --output-filename=HRMLink.exe ^
   --enable-plugin=pyqt5 ^
   --include-package=bleak ^

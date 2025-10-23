@@ -7,9 +7,9 @@ import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 
 VER2 = (1, 3, 6, 2)
-BINARY_BUILD = 10
+BINARY_BUILD = 0
 v1      = "v" + ".".join(map(str, VER2[0:3]))
-F_      = f"-alpha.{BINARY_BUILD}"
+F_      = f"-beta.{BINARY_BUILD}"
 vname   = v1 + (F_ if IS_FROZEN else f"+code.{VER2[3]}")
 Fvname  = v1 +  F_
 __version__ = vname
@@ -18,7 +18,7 @@ system_utils.VER2  = VER2
 system_utils.vname = vname
 IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
-from system_utils import (
+from system_utils import (check_run,AppisRunning,
      getlogger, upmod_logger, add_errorfunc, handle_exception
     ,init_config, pip_install_models
     ,handle_update_mode,handle_end_update, try_except
@@ -37,6 +37,19 @@ if args.start_:
 
 if args.startup:
     print("Success!")
+    sys.exit(0)
+
+# 检查软件是否已经运行
+try:
+    check_run()
+except AppisRunning:
+    from PyQt5.QtWidgets import QMessageBox, QWidget, QApplication
+    from qasync import QEventLoop
+    app = QApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(asyncio.sleep(0.1))
+    QMessageBox.critical(QWidget(),"程序正在运行", "错误程序正在运行", QMessageBox.Ok)
     sys.exit(0)
 
 # 如果是更新模式，使用简单日志输出
@@ -64,15 +77,15 @@ else:
              "name": vname
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "修复定时断开链接无法使用的问题和应用更新相关优化等"
+            ,"gxjs": "优化应用启动，修复无法保存文件的问题等"
         }
         text = json.dumps(sdata, ensure_ascii=False, indent=2)
         frozendata = {
                  "name": Fvname
                 ,"version": 2
                 ,"VER2": VER2
-                ,"updateTime": "2025-9-16-12:00:00"
-                ,"gxjs": "本次更新将启动时自动连接更改为自动连接设备,优化了界面操作逻辑"
+                ,"updateTime": "2025-10-24-4:00:00"
+                ,"gxjs": "本次更新新增浮窗背景纯度设置，修复了定时断开和保存文件无法使用的问题，以及一系列优化"
                 ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{Fvname}"
                 ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{Fvname}/HRMLink.exe"
             }

@@ -43,11 +43,7 @@ class MyHandler(RotatingFileHandler):
             super().doRollover()
         except Exception as e:
             raise CanNotSaveLogFile("日志保存失败: %s" % e)
-        if IS_FROZEN:
-            __version__ = vname
-        else:
-            __version__ = 't' + '.'.join(map(str, VER2))
-        logger.info(f"运行程序 -{__version__} " + " ".join(argv for argv in sys.argv if argv))
+        logger.info(f"运行程序 -{vname} " + " ".join(argv for argv in sys.argv if argv))
         logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 def getlogger():
@@ -69,7 +65,6 @@ def getlogger():
     except Exception:
         # 无法使用日志文件时使用一般的日志记录器
         handler = logging.StreamHandler()
-        raise CanNotSaveLogFile("无法创建日志文件")
     handler.setLevel(logging.DEBUG)
     print(2.2)
 

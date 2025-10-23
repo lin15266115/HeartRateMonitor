@@ -372,7 +372,7 @@ class AppSettingsUI(QGroupBox):
         self.devname = devname
         if devname is None:
             return
-        if self.act_HR is None:
+        if not hasattr(self, "act_HR"):
             self.act_HR = self.trme.addAction(f"{self.devstautus} {devname}")
             self.act_HR.triggered.connect(self.act_HR_clicked.emit)
         else:

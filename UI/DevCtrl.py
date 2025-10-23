@@ -348,7 +348,7 @@ class DeviceConnectionUI(QVBoxLayout):
             return
 
         filename, _ = QFileDialog.getSaveFileName(
-            self, "保存心率数据", "", "CSV文件 (*.csv);;所有文件 (*)")
+            self.save_button, "保存心率数据", "", "CSV文件 (*.csv);;所有文件 (*)")
 
         if filename:
             try:

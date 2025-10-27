@@ -10,11 +10,13 @@ import urllib.error
 import urllib.request
 from typing import Any
 from logging.handlers import RotatingFileHandler
+from typing import TextIO
 
 VER2:tuple[int,int,int,int]
 vname = "no version name"
 IS_FROZEN = None
-SLEEP_TIME = 1
+STARTUPMODE = False
+strlog = ""
 class AppisRunning(Exception):pass
 
 # --------进程检测--------
@@ -54,17 +56,19 @@ def getlogger():
 
     print(2.1)
     set_logfile()
-
-    try:
-        handler = MyHandler(
-             'log/loger.log'
-            ,maxBytes=5*1024*1024
-            ,backupCount=3
-            ,encoding='utf-8'
-        )
-    except Exception:
-        # 无法使用日志文件时使用一般的日志记录器
+    if STARTUPMODE:
         handler = logging.StreamHandler()
+    else:
+        try:
+            handler = MyHandler(
+                 'log/loger.log'
+                ,maxBytes=5*1024*1024
+                ,backupCount=3
+                ,encoding='utf-8'
+            )
+        except Exception:
+            # 无法使用日志文件时使用一般的日志记录器
+            handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     print(2.2)
 
@@ -107,7 +111,7 @@ def set_logfile():
             return
         except Exception as e:
             print(f"错误: {e}")
-            time.sleep(SLEEP_TIME)
+            time.sleep(5)
             rt += 1
 
 # --------错误输出处理函数--------

@@ -6,16 +6,16 @@ import argparse
 import system_utils
 system_utils.IS_FROZEN = IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 
-VER2 = (1, 3, 6, 3)
-BINARY_BUILD = 1
-v1      = "v" + ".".join(map(str, VER2[0:3]))
-F_      = f"-beta.{BINARY_BUILD}"
-vname   = v1 + (F_ if IS_FROZEN else f"+code.{VER2[3]}")
+VER2 = (1, 3, 7, 0)
+BINARY_BUILD = 2
+v1      = ".".join(map(str, VER2[0:3]))
+F_      = "-alpha" + (("."+str(BINARY_BUILD)) if BINARY_BUILD else "")
+vname = f"{v1}a{VER2[3]}"
 Fvname  = v1 +  F_
-__version__ = vname
+__version__ = vname if not IS_FROZEN else Fvname
 
 system_utils.VER2  = VER2
-system_utils.vname = vname
+system_utils.vname = __version__
 IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
 from system_utils import (check_run,AppisRunning,
@@ -33,24 +33,25 @@ parser.add_argument('-start_', action='store_true', help='开机启动标志')
 args = parser.parse_args()
 
 if args.start_:
-    system_utils.SLEEP_TIME = 10
+    system_utils.STARTUPMODE = True
 
 if args.startup:
     print("Success!")
     sys.exit(0)
 
-# 检查软件是否已经运行
-try:
-    check_run()
-except AppisRunning:
-    from PyQt5.QtWidgets import QMessageBox, QWidget, QApplication
-    from qasync import QEventLoop
-    app = QApplication(sys.argv)
-    loop = QEventLoop(app)
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(asyncio.sleep(0.1))
-    QMessageBox.critical(QWidget(),"程序正在运行", "错误程序正在运行", QMessageBox.Ok)
-    sys.exit(0)
+def _cr():
+    # 检查软件是否已经运行
+    try:
+        check_run()
+    except AppisRunning:
+        from PyQt5.QtWidgets import QMessageBox, QApplication
+        app = QApplication(sys.argv)
+        QMessageBox.critical(None, "程序正在运行", "错误：程序正在运行，无法再次启动。", QMessageBox.Ok)
+        sys.exit(1)
+
+_cr()
+
+del _cr
 
 # 如果是更新模式，使用简单日志输出
 if args.updatemode:
@@ -74,20 +75,20 @@ if IS_FROZEN:
 else:
     with open("version.json", "w", encoding="utf-8") as f:
         sdata = {
-             "name": vname
+             "name": "v" + vname
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "优化应用启动，修复无法保存文件的问题等"
+            ,"gxjs": "优化开机自启动兼容性, 开机自启模式下不再使用文件日志"
         }
         text = json.dumps(sdata, ensure_ascii=False, indent=2)
         frozendata = {
-                 "name": Fvname
+                 "name": "v" + Fvname
                 ,"version": 2
                 ,"VER2": VER2
                 ,"updateTime": "2025-10-24-4:00:00"
                 ,"gxjs": "本次更新新增浮窗背景纯度设置，修复了定时断开和保存文件无法使用的问题，以及一系列优化"
-                ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/{Fvname}"
-                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/{Fvname}/HRMLink.exe"
+                ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/v{Fvname}"
+                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/v{Fvname}/HRMLink.exe"
             }
         frozentext = f""",\n\n\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
         text = text[0:-2] + frozentext
@@ -116,7 +117,7 @@ pip_install_models(import_pyqt5, "pyqt5")
 pip_install_models(import_qasync, "qasync")
 pip_install_models(import_models, "bleak")
 
-from importlib.metadata import metadata as get_metadata, distributions, distribution, Distribution
+from importlib.metadata import metadata as get_metadata, distributions, distribution, Distribution, PackageNotFoundError
 packages: list[dict[str, str|int]] = []
 packages.append({"nameandversion": "包名 == 版本号", "len": 10, "license":"开源许可证", "name":""})
 if not IS_NUITKA: # 避免nuitka编译后无法运行
@@ -142,11 +143,13 @@ def get_license(name:str):
 # pyinstaller编译的应用必须直接使用`distribution`函数获取模块信息, 否则会报错
 data = [
      distribution('bleak'),
-     distribution('pyinstaller') if not IS_NUITKA else None,
      distribution('PyQt5'),distribution('PyQt5-Qt5'),distribution('PyQt5_sip')
     ,distribution('qasync'),distribution('winrt-runtime')
 ]
 [add_pak(d_) if d_ else None for d_ in data]
+try:
+    add_pak(distribution('pyinstaller') if not IS_NUITKA else None)
+except PackageNotFoundError: pass
 
 max_len = max(map(lambda x: x["len"], packages))
 
@@ -177,10 +180,9 @@ if __name__ == "__main__":
     window.show()
     hwnd = window.winId()
 
-    def errwin(exc_type, exc_value):
-        window.verylarge_error(f"{exc_type.__name__}: {exc_value}")
+    def errwin(exc_type, exc_value, exit_ = True, setiserror = True):
+        window.verylarge_error(f"{exc_type.__name__}: {exc_value}", exit_, setiserror)
     add_errorfunc(errwin)
-
 
     screen = app.primaryScreen()
     screen.logicalDotsPerInchChanged.connect(window.auto_FixedSize)

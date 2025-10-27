@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QHBoxLayout, QCheckBox, QPushButton, QSpinBox, QLineEdit, QColorDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QHBoxLayout, QCheckBox, QPushButton, QSpinBox, QLineEdit, QColorDialog, QMessageBox, QApplication
 from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor
-from .basicwidgets import *
-from .heartratepng import *
+from .basicwidgets import Slider_, CheackBox_
+from .heartratepng import get_icon
 from system_utils import logger, try_except, ups, gs, update_settings
 __all__ = ["FloatingHeartRateWindow", "FloatingWindowSettingUI"]
 
@@ -13,7 +13,7 @@ class FloatingHeartRateWindow(QWidget):
         """初始化浮动窗口"""
         super().__init__(parent)
 
-        self.text_color = QColor(self._get_set("text_color", 4292502628, int))
+        self.text_color = QColor(self._get_set("text_color", 4294026661, int))
         self.text_base = self._get_set('text_base', "心率: {rate}", str)
         self.bg_color = QColor(0, 0, 0)
         self.bg_opacity = self._get_set('bg_opacity', 125, int)
@@ -45,6 +45,7 @@ class FloatingHeartRateWindow(QWidget):
         self.update_style()
 
         layout.addWidget(self.heart_rate_label)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         # 窗口拖动功能
         self.old_pos = self.pos()
@@ -61,8 +62,8 @@ class FloatingHeartRateWindow(QWidget):
         else:
             # 默认的浮动窗口模式
             self.setWindowFlags(
-                 Qt.WindowStaysOnTopHint 
-                |Qt.FramelessWindowHint 
+                 Qt.WindowStaysOnTopHint
+                |Qt.FramelessWindowHint
                 |Qt.Tool
             )
 
@@ -77,20 +78,42 @@ class FloatingHeartRateWindow(QWidget):
         """鼠标按下事件，开始拖动窗口"""
         if event.button() == Qt.LeftButton:
             self.old_pos = event.globalPos()
+            # 记录鼠标与窗口之间的偏移
+            self.offset = self.pos() - self.old_pos
             self.dragging = True
+            # 获取系统所有屏幕的位置信息
+            self.screens = QApplication.screens()
 
     def mouseMoveEvent(self, event):
         """鼠标移动事件，处理窗口拖动"""
         if self.dragging:
-            delta = QPoint(event.globalPos() - self.old_pos)
-            x = self.x() + delta.x()
-            y = self.y() + delta.y()
-            # 限制窗口不会移出屏幕太远
+            mpos = QPoint(event.globalPos())
+            new = QPoint(event.globalPos() + self.offset)
+            x = new.x()
+            y = new.y()
+
+            wmin = wmax = hmin = hmax = None
+            # 获取鼠标所在屏幕的信息
+            for screen in self.screens:
+                data = screen.geometry()
+                if data.contains(mpos, False):
+                    wmin = data.x()
+                    wmax = data.right()
+                    hmin = data.y()
+                    hmax = data.bottom()
+                    break
+            
+            # 计算窗口移动范围
+            size = self.size()
+            xmin = wmin
+            xmax = wmax - size.width()
+            ymin = hmin
+            ymax = hmax - size.height()
+            # 完成窗口移动
             self.move(
-                 x if -10 < x else -10
-                ,y if -10 < y else -10
-                )
-            self.old_pos = event.globalPos()
+                 ((x if xmin < x else xmin) if xmax > x else xmax)
+                ,((y if ymin < y else ymin) if ymax > y else ymax)
+            )
 
     def mouseReleaseEvent(self, event):
         """鼠标释放事件，结束拖动并保存位置"""

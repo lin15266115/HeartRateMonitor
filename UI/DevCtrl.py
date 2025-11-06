@@ -4,12 +4,13 @@ from PyQt5.QtWidgets import (QVBoxLayout, QLabel
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
 
 from bleak.exc import BleakDeviceNotFoundError, BleakError
+
 from .basicwidgets import CheackBox_
 from system_utils import logger, try_except, ups, gs
 from Blegetheartbeat import BLEHeartRateMonitor
 
+import os
 import json
-import asyncio
 import datetime
 
 from qasync import asyncSlot
@@ -34,6 +35,7 @@ class DeviceConnectionUI(QVBoxLayout):
         self.be_timeout = False
         self.usedevlist = True
         self.auto_connect_now = True
+        self.start_hr_data = None
         self.selected_device = self._get_set("last_selected_device", None, json.loads)
         self.auto_connect = self._get_set("auto_connect", False, bool)
         self.setup_ui()
@@ -127,7 +129,7 @@ class DeviceConnectionUI(QVBoxLayout):
 
         # 数据保存按钮
         self.save_button = QPushButton("保存数据到文件")
-        self.save_button.clicked.connect(self.save_data)
+        self.save_button.clicked.connect(self.ct_save_data)
         data_layout.addWidget(self.save_button)
 
         data_group.setLayout(data_layout)
@@ -266,6 +268,7 @@ class DeviceConnectionUI(QVBoxLayout):
             self.status_label.setText(rtext.format(device_address=device_name))
             logger.info(rtext.format(device_address=f"{device_name} ({device_address})"))
             if success:
+                self.start_hr_data = datetime.datetime.now().strftime("%Y%m%d%H%M")
                 self.set_act_Devstatus.emit("断开")
                 self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
 
@@ -341,25 +344,42 @@ class DeviceConnectionUI(QVBoxLayout):
             self.quit_ = False
         await disconnect()
 
-    def save_data(self):
+    def ct_save_data(self):
         """保存心率数据到文件"""
         if not self.ble_monitor.heart_rate_data:
-            QMessageBox.warning(self, "警告", "没有可保存的数据")
+            QMessageBox.warning(self.save_button, "警告", "没有可保存的数据")
             return
 
         filename, _ = QFileDialog.getSaveFileName(
             self.save_button, "保存心率数据", "", "CSV文件 (*.csv);;所有文件 (*)")
 
         if filename:
-            try:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write("时间,心率(BPM)\n")
-                    for timestamp, hr in self.ble_monitor.heart_rate_data:
-                        f.write(f"{timestamp},{hr}\n")
-                QMessageBox.information(self, "成功", "数据已保存")
-            except Exception as e:
-                QMessageBox.warning(self, "错误", f"保存失败: {str(e)}")
-                logger.error(f"保存数据时出错: {str(e)}")
+            self.savehrdata(filename)
+
+    def savehrdata(self, filename):
+        try:
+            with open(filename, 'w', encoding='utf-8-sig') as f:
+                f.write("时间,心率(BPM)\n")
+                for timestamp, hr in self.ble_monitor.heart_rate_data:
+                    f.write(f"{timestamp},{hr}\n")
+            logger.info(f"保存心率数据到 {filename}")
+            QMessageBox.information(self.save_button, "成功", "数据已保存")
+        except Exception as e:
+            QMessageBox.warning(self.save_button, "错误", f"保存数据时出错: {str(e)}")
+            logger.error(f"保存数据时出错: {str(e)}")
+
+    def auto_savedata(self):
+        # 检查目录
+        autosavepath = "./autosave"
+        pathname = datetime.datetime.now().strftime("%Y%m%d%H%M")
+        if not os.path.exists(autosavepath):os.mkdir(autosavepath)
+        path = os.path.join(autosavepath,f"{pathname}.csv")
+        n = 0
+        while True:
+            edpathname = (path + f"({n})") if n > 0 else path
+            if not os.path.exists(edpathname):
+                self.savehrdata(edpathname)
+                break
 
     def update_ui(self):
         """更新UI状态"""

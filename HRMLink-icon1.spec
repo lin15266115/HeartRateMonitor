@@ -43,5 +43,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     version='version.txt',
-    icon='./HR-icon.ico'
+    icon='./_oldfiles/icon1.ico'
 )

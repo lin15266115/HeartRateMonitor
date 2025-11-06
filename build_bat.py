@@ -56,7 +56,7 @@ def main(VER2, vname=None):
   --product-version={".".join(map(str, VER2))} ^
   --file-description="通过低功耗蓝牙协议获取心率并显示 | Compiled using Nuitka" ^
   --copyright="Copyright (C) 2025 Zero_linofe | GPL-3.0 License" ^
-  --windows-icon-from-ico=_oldfiles/icon1.ico ^
+  --windows-icon-from-ico=HR-icon.ico ^
   __main__.py
 """
             f.write(text__)

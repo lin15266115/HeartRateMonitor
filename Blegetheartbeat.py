@@ -75,13 +75,14 @@ class BLEHeartRateMonitor:
             )
             return True, "已连接 {device_address}"
         else:
-            await self.disconnect_device()
+            await self.disconnect_device(False)
             return False, "{device_address} 不是支持心率服务的设备"
 
-    async def disconnect_device(self):
+    async def disconnect_device(self, stop_notify: bool = True):
         """断开设备连接"""
         if self.client and self.client.is_connected:
-            await self.client.stop_notify(HEART_RATE_MEASUREMENT_UUID)
+            if stop_notify:
+                await self.client.stop_notify(HEART_RATE_MEASUREMENT_UUID)
             await self.client.disconnect()
             return True
         return False

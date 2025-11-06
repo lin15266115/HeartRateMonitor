@@ -6,7 +6,7 @@
 
 ### 项目仓库：
 
-[` github `](https://github.com/lin15266115/HeartRateMonitor)
+[` github `](https://github.com/lin1526615/HeartRateMonitor)
 [` gitee `](https://gitee.com/lin_1526615/HeartRateMonitor)
 [` gitcode `](https://gitcode.com/lin15266115/HeartBeat)
 

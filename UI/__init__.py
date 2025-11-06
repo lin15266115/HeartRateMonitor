@@ -13,7 +13,8 @@ from .DevCtrl import *
 from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import UpdWindow as DownloadWindow
-from system_utils import check_run, AppisRunning, vname, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
+from system_utils import check_run, AppisRunning, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
+from version import vname
 
 from .Floatingwin_old import *
 

@@ -10,12 +10,12 @@ import urllib.error
 import urllib.request
 from typing import Any
 from logging.handlers import RotatingFileHandler
-from typing import TextIO
 
-VER2:tuple[int,int,int,int]
-vname = "no version name"
-IS_FROZEN = None
-STARTUPMODE = False
+from version import vname, IS_FROZEN, VER2
+
+# 采用绝对路径避免开机自启时向c盘写入数据
+basefile = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(__file__)
+print(basefile)
 strlog = ""
 class AppisRunning(Exception):pass
 
@@ -45,30 +45,27 @@ class MyHandler(RotatingFileHandler):
             super().doRollover()
         except Exception as e:
             raise CanNotSaveLogFile("日志保存失败: %s" % e)
-        logger.info(f"运行程序 -{vname} " + " ".join(argv for argv in sys.argv if argv))
-        logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
 
 def getlogger():
     global logger
     # 创建日志记录器
     logger = logging.getLogger('__main__')
     logger.setLevel(logging.DEBUG)
+    logfile = os.path.join(basefile, 'log/loger.log')
+    print(logfile)
 
     print(2.1)
     set_logfile()
-    if STARTUPMODE:
+    try:
+        handler = MyHandler(
+             logfile
+            ,maxBytes=5*1024*1024
+            ,backupCount=3
+            ,encoding='utf-8'
+        )
+    except Exception:
+        # 无法使用日志文件时使用一般的日志记录器
         handler = logging.StreamHandler()
-    else:
-        try:
-            handler = MyHandler(
-                 'log/loger.log'
-                ,maxBytes=5*1024*1024
-                ,backupCount=3
-                ,encoding='utf-8'
-            )
-        except Exception:
-            # 无法使用日志文件时使用一般的日志记录器
-            handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     print(2.2)
 
@@ -77,6 +74,8 @@ def getlogger():
     logger.addHandler(handler)
     if isinstance(handler, MyHandler):
         handler.doRollover()
+    logger.info(f"运行程序 -{vname} " + " ".join(argv for argv in sys.argv if argv))
+    logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
     return logger
 
 def upmod_logger():
@@ -175,7 +174,8 @@ def try_except(errlogname = "", func_ = None, exit_ = True, exc_info = True):
 from configparser import ConfigParser
 
 SETTINGTYPE = dict[str, Any]
-config_file = 'config.ini'
+config_file = os.path.join(basefile, 'config.ini')
+print(config_file)
 
 config = ConfigParser()
 
@@ -428,7 +428,7 @@ def checkupdate() :
     try:
         url = "https://raw.gitcode.com/lin15266115/HeartBeat/raw/main/version.json"
         urlGitee = "https://gitee.com/lin_1526615/HeartRateMonitor/raw/main/version.json"
-        urlGithub = "https://api.github.com/repos/lin15266115/HeartRateMonitor/contents/version.json?ref=main"
+        urlGithub = "https://api.github.com/repos/lin1526615/HeartRateMonitor/contents/version.json?ref=main"
         return check_with_raw(url)
     except urllib.error.URLError as e:
         logger.warning(f"更新检查失败(gitcodeURL不可达): {e}")

@@ -1,0 +1,41 @@
+# 直接运行脚本生成version.json和bat文件
+
+import sys
+IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
+IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
+
+VER2 = (1, 3, 7, 1)
+BINARY_BUILD = 8
+v1      = ".".join(map(str, VER2[0:3]))
+F_      = "-alpha" + (("."+str(BINARY_BUILD)) if BINARY_BUILD else "")
+vname = f"{v1}a{VER2[3]}"
+Fvname  = v1 +  F_
+__version__ = vname if not IS_FROZEN else Fvname
+
+if __name__ == "__main__":
+    import json
+    with open("version.json", "w", encoding="utf-8") as f:
+        sdata = {
+             "name": "v" + vname
+            ,"version": 2
+            ,"VER2": VER2
+            ,"gxjs": "(优化): 修复开机自启可能无法成功启动的问题, 闲置开机自启模式等(1.3.7.1)"
+        }
+        text = json.dumps(sdata, ensure_ascii=False, indent=2)
+        frozendata = {
+                 "name": "v" + Fvname
+                ,"version": 2
+                ,"VER2": VER2
+                ,"updateTime": "2025-10-24-4:00:00"
+                ,"gxjs": "本次更新新增浮窗背景纯度设置，修复了定时断开和保存文件无法使用的问题，以及一系列优化"
+                ,"index": f"https://gitcode.com/lin15266115/HeartBeat/releases/v{Fvname}"
+                ,"download": f"https://gitcode.com/lin15266115/HeartBeat/releases/download/v{Fvname}/HRMLink.exe"
+            }
+        frozentext = f""",\n\n\n  "frozen":{json.dumps(frozendata, ensure_ascii=False)}\n}}"""
+        text = text[0:-2] + frozentext
+        f.write(text)
+    try:
+        from importlib import import_module
+        buildbatmain = import_module("build_bat").main
+        buildbatmain(VER2, Fvname)
+    except Exception: pass

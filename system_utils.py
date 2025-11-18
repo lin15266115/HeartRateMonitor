@@ -43,6 +43,9 @@ class MyHandler(RotatingFileHandler):
     def doRollover(self):
         try:
             super().doRollover()
+            # 在每一个日志文件前添加环境信息
+            logger.info(f"运行程序 -{vname} " + " ".join(argv for argv in sys.argv if argv))
+            logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
         except Exception as e:
             raise CanNotSaveLogFile("日志保存失败: %s" % e)
 
@@ -74,8 +77,6 @@ def getlogger():
     logger.addHandler(handler)
     if isinstance(handler, MyHandler):
         handler.doRollover()
-    logger.info(f"运行程序 -{vname} " + " ".join(argv for argv in sys.argv if argv))
-    logger.info(f"Python版本: {sys.version}; 运行位置：{sys.executable}")
     return logger
 
 def upmod_logger():

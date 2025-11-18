@@ -4,13 +4,13 @@ import sys
 IS_FROZEN = getattr(sys, 'frozen', False) or hasattr(sys, "_MEIPASS") or ("__compiled__" in globals())
 IS_NUITKA = IS_FROZEN and "__compiled__" in globals()
 
-VER2 = (1, 3, 7, 1)
-BINARY_BUILD = 8
+VER2 = (1, 3, 7, 2)
+BINARY_BUILD = 9
 v1      = ".".join(map(str, VER2[0:3]))
 F_      = "-alpha" + (("."+str(BINARY_BUILD)) if BINARY_BUILD else "")
 vname = f"{v1}a{VER2[3]}"
 Fvname  = v1 +  F_
-__version__ = vname if not IS_FROZEN else Fvname
+__version__ = Fvname if IS_FROZEN else vname
 
 if __name__ == "__main__":
     import json
@@ -19,7 +19,7 @@ if __name__ == "__main__":
              "name": "v" + vname
             ,"version": 2
             ,"VER2": VER2
-            ,"gxjs": "(优化): 修复开机自启可能无法成功启动的问题, 闲置开机自启模式等(1.3.7.1)"
+            ,"gxjs": "(更新): 添加浮动窗口移出屏幕功能以避免遮挡功能等 (1.3.7.2)"
         }
         text = json.dumps(sdata, ensure_ascii=False, indent=2)
         frozendata = {

@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QVBoxLayout, QLabel
-    ,QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QListWidget
+    ,QGroupBox, QHBoxLayout, QPushButton, QListWidget
     ,QSpinBox, QTextEdit, QMessageBox,  QFileDialog, QListWidgetItem)
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
 
@@ -127,13 +127,21 @@ class DeviceConnectionUI(QVBoxLayout):
         self.heart_rate_display.setReadOnly(True)
         data_layout.addWidget(self.heart_rate_display)
 
+        databutlayout = QHBoxLayout()
+        data_layout.addLayout(databutlayout)
+
+        # 清空数据按钮
+        self.clean_button = QPushButton("清空心率数据")
+        self.clean_button.clicked.connect(self.ct_clean_data)
+        databutlayout.addWidget(self.clean_button)
+
         # 数据保存按钮
         self.save_button = QPushButton("保存数据到文件")
         self.save_button.clicked.connect(self.ct_save_data)
-        data_layout.addWidget(self.save_button)
+        databutlayout.addWidget(self.save_button)
 
         data_group.setLayout(data_layout)
-        
+
         self.addWidget(scan_group)
         self.addWidget(control_group)
         self.addWidget(data_group)
@@ -142,13 +150,17 @@ class DeviceConnectionUI(QVBoxLayout):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_ui)
         self.update_timer.start(1000)
-    
+
     def on_heart_rate_update(self, timestamp, heart_rate):
         self.heart_rate_display.append(f"[{timestamp}] 心率: {heart_rate} BPM")
         self.heart_rate_updated.emit(heart_rate)
 
     def filter_empty(self, state):
             self.ble_monitor.filter_empty = state
+
+    def hrdatalog(self, log: str):
+        datatime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.heart_rate_display.append(f"[{datatime}] {log}")
 
     def on_device_selected(self, item):
         """处理设备选择事件"""
@@ -252,14 +264,16 @@ class DeviceConnectionUI(QVBoxLayout):
         if not self.selected_device:
             self.status_label.setText("请先选择设备")
             return
+
         # 如果正在连接，则返回
         if self.linking: return
+        self.linking = True
 
         device_name = self.selected_device["name"]
         device_address = self.selected_device["address"]
 
-        self.linking = True
-
+        self.connect_button.setEnabled(False)
+        self.clean_button.setEnabled(False)
         self.status_label.setText(f"正在连接 {device_name}...")
         logger.info(f"尝试连接 {device_name} ({device_address})")
 
@@ -270,7 +284,7 @@ class DeviceConnectionUI(QVBoxLayout):
             if success:
                 self.start_hr_data = datetime.datetime.now().strftime("%Y%m%d%H%M")
                 self.set_act_Devstatus.emit("断开")
-                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 已连接到设备")
+                self.hrdatalog("已连接到设备")
 
                 # 设置自动断开定时器（如果设置了时间）
                 duration = self.duration_spin.value()
@@ -288,20 +302,20 @@ class DeviceConnectionUI(QVBoxLayout):
                 self.status_label.setText(f"设备GATT服务不可用, 请尝试重新启动设备心率广播功能")
             else:
                 self.status_label.setText(f"连接错误: {str(e)}")
-            self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+            self.hrdatalog(f"连接失败: {str(e)}")
             logger.error(f"连接设备时出错: {e}", exc_info=True)
         except OSError as e:
             if e.winerror == -2147023673:
                 self.status_label.setText(f"链接请求被中断({e.winerror})")
-                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+                self.hrdatalog(f"连接失败: {str(e)}")
                 logger.warning(f"连接设备时出错: {e}")
             else:
                 self.status_label.setText(f"连接错误: {str(e)}")
-                self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 链接错误: {str(e)}")
+                self.hrdatalog(f"链接错误: {str(e)}")
                 logger.error(f"连接设备时出错: {e}", exc_info=True)
         except Exception as e:
             self.status_label.setText(f"连接错误: {str(e)}")
-            self.heart_rate_display.append(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 连接失败: {str(e)}")
+            self.hrdatalog(f"连接失败: {str(e)}")
             logger.error(f"连接设备时出错: {e}", exc_info=True)
         #
         # =============================
@@ -310,7 +324,7 @@ class DeviceConnectionUI(QVBoxLayout):
 
     def disconnect_error(self, e):
         self.status_label.setText(e)
-    
+
     @asyncSlot()
     async def disconnect_device(self):
         """断开当前连接"""
@@ -343,6 +357,13 @@ class DeviceConnectionUI(QVBoxLayout):
                 self.status_label.setText("断开连接失败")
             self.quit_ = False
         await disconnect()
+
+    def ct_clean_data(self):
+        """清除心率数据"""
+        self.ble_monitor.clear_heart_rate_data()
+        self.heart_rate_display.clear()
+        self.hrdatalog("已清除缓存")
+        self.status_label.setText("已清除缓存的心率数据")
 
     def ct_save_data(self):
         """保存心率数据到文件"""
@@ -387,6 +408,7 @@ class DeviceConnectionUI(QVBoxLayout):
         elif self.ble_monitor.client and self.ble_monitor.client.is_connected:
             self.be_timeout = True
             self.connect_button.setEnabled(False)
+            self.clean_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
             self.set_devicelist_use(False)
         else:
@@ -396,6 +418,7 @@ class DeviceConnectionUI(QVBoxLayout):
                 self.be_timeout = False
                 self.set_devicelist_use(True)
             self.heart_rate_updated.emit(-1)
+            self.clean_button.setEnabled(True)
             self.connect_button.setEnabled(True)
             self.disconnect_button.setEnabled(False)
 

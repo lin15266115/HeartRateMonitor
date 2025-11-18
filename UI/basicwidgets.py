@@ -13,7 +13,7 @@ class Slider_(QSlider):
         self.valueChanged.connect(
             lambda value: self.value_changed_callback(value, ups_=False)
         )
-    
+
     def mouseReleaseEvent(self, ev):
         self.value_changed_callback(ups_=True)
         return super().mouseReleaseEvent(ev)

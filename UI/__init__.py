@@ -14,7 +14,7 @@ from .basicwidgets import *
 from .heartratepng import *
 from .UpDownloadwin import UpdWindow as DownloadWindow
 from system_utils import check_run, AppisRunning, logger, try_except, ups, gs, checkupdate, add_to_startup, remove_from_startup, check_startup
-from version import vname
+from version import __version__ as vname
 
 from .Floatingwin_old import *
 
@@ -97,8 +97,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(get_icon())
 
         right_layout = QVBoxLayout()
-        right_layout.addWidget(self.float_ui, 2)
-        right_layout.addWidget(self.settings_ui, 1)
+        right_layout.addWidget(self.float_ui, 11)
+        right_layout.addWidget(self.settings_ui, 5)
 
         setting_layout.addLayout(self.device_ui, stretch=2)
         setting_layout.addLayout(right_layout, stretch=1)

@@ -68,7 +68,7 @@ class DownloadThread(QThread):
 class UpdWindow(QDialog):
     url = ""
     gitcodeurl = None
-    githuburl = "https://github.com/lin15266115/HeartRateMonitor"
+    githuburl = "https://github.com/lin1526615/HeartRateMonitor"
     @try_except("下载窗口初始化")
     def __init__(self, parent=None):
         super().__init__(parent)

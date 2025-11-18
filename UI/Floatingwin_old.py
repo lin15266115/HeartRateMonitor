@@ -1,9 +1,9 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QHBoxLayout, QCheckBox, QPushButton, QSpinBox, QLineEdit, QColorDialog, QMessageBox, QApplication
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QHBoxLayout, QPushButton, QSpinBox, QLineEdit, QColorDialog, QMessageBox, QApplication
 from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor
 from .basicwidgets import Slider_, CheackBox_
 from .heartratepng import get_icon
-from system_utils import logger, try_except, ups, gs, update_settings
+from system_utils import try_except, ups, gs, update_settings
 __all__ = ["FloatingHeartRateWindow", "FloatingWindowSettingUI"]
 
 class FloatingHeartRateWindow(QWidget):
@@ -30,6 +30,9 @@ class FloatingHeartRateWindow(QWidget):
         y = self._get_set('y', "default")
         if not (x == "default" or y == "default"):
             self.move(*[int(i) for i in [x, y]]) # 化简为繁是吧
+            self.insidepos = self.pos()
+
+        if self._get_set('moveoutside', False, bool): self.movetooutside()
 
     def setup_ui(self):
         """设置UI布局和组件"""
@@ -73,6 +76,26 @@ class FloatingHeartRateWindow(QWidget):
         self._up_set('register_as_window', enabled)
         self.update_window_flags()
         self.show()  # 重新显示以应用新标志
+
+    def set_moveoutside(self, enabled):
+        """设置将窗口移动到屏幕外的位置"""
+        self._up_set('moveoutside', enabled)
+        if enabled:
+            self.movetooutside()
+        else:
+            self.move(self.insidepos)
+
+    def movetooutside(self):
+        """将窗口移动到屏幕外"""
+        # 获取所有屏幕的位置信息
+        self.insidepos = self.pos()
+        screens = QApplication.screens()
+        # 遍历屏幕获取y最小值
+        min_y = min(screen.geometry().y() for screen in screens)
+            
+        # 计算窗口完全位于屏幕外的位置
+        new_pos = QPoint(self.insidepos.x(), min_y - int(self.font_size+self.padding*2))
+        self.move(new_pos)
 
     def mousePressEvent(self, event):
         """鼠标按下事件，开始拖动窗口"""
@@ -331,14 +354,12 @@ class FloatingWindowSettingUI(QGroupBox):
         float_layout.addLayout(saturation_layout)
 
         # 注册为常规窗口选项
-        register_layout = QHBoxLayout()
-        self.register_window_check = QCheckBox("注册为常规窗口(OBS捕获)")
         register_window_check_state = self.floating_window._get_set('register_as_window', False, bool)
-        self.register_window_check.setChecked(register_window_check_state)
-        self.register_window_check.stateChanged.connect(self.toggle_register_as_window)
-        register_layout.addWidget(self.register_window_check)
-        float_layout.addLayout(register_layout)
+        self.register_window_check = CheackBox_("注册为常规窗口(OBS捕获)", float_layout, register_window_check_state, self.toggle_register_as_window)
 
+        # 将窗口移出屏幕以防止遮挡
+        moveoutside = self.floating_window._get_set('moveoutside', False, bool)
+        CheackBox_("隐藏窗口(obs捕获)", float_layout, moveoutside, self.toggle_moveoutside).setToolTip("将窗口移出屏幕以防止遮挡屏幕内容")
         # 完成布局设置
         self.setLayout(float_layout)
 
@@ -386,6 +407,10 @@ class FloatingWindowSettingUI(QGroupBox):
     def toggle_register_as_window(self, state):
         """切换是否注册为常规窗口"""
         self.floating_window.set_register_as_window(state == Qt.Checked)
+    
+    def toggle_moveoutside(self, state):
+        """切换是否将窗口移出屏幕以防止遮挡"""
+        self.floating_window.set_moveoutside(state == Qt.Checked)
 
     def set_text_color(self):
         """打开颜色对话框设置文字颜色"""

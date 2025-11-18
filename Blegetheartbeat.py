@@ -142,3 +142,7 @@ class BLEHeartRateMonitor:
             'avg': round(sum(hrs) / len(hrs), 1),
             'count': len(hrs)
         }
+    
+    def clear_heart_rate_data(self):
+        """清空心率数据"""
+        self.heart_rate_data.clear()
